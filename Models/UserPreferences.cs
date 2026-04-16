@@ -4,6 +4,7 @@ namespace DL_Skin_Randomiser.Models
     {
         public string StatePath { get; set; } = "";
         public List<string> CustomFolders { get; set; } = [];
+        public List<LoadoutPick> LastSessionLoadout { get; set; } = [];
         public Dictionary<string, ModPreference> Mods { get; set; } = [];
     }
 }

@@ -23,7 +23,9 @@ namespace DL_Skin_Randomiser
 
         private readonly string _preferencesPath = UserPreferenceService.DefaultPreferencesPath;
         private string _statePath = "";
+        private string _gamePath = "";
         private List<DlmmMod> _mods = [];
+        private List<LoadoutPick> _currentLoadout = [];
         private UserPreferences _preferences = new();
         private bool _isBindingGroups;
         private bool _isLoading;
@@ -57,14 +59,18 @@ namespace DL_Skin_Randomiser
                 return;
             }
 
-            _mods = ModService.LoadMods(_statePath)
+            var snapshot = DlmmStateService.Load(_statePath);
+            _gamePath = snapshot.GamePath;
+            _mods = snapshot.Mods
                 .OrderBy(mod => mod.Hero)
                 .ThenBy(mod => mod.Name)
                 .ToList();
 
             UserPreferenceService.Apply(_mods, _preferences);
+            _currentLoadout = _preferences.LastSessionLoadout;
             RefreshCharacterOptions();
             RefreshFolderOptions();
+            RefreshLoadoutSummary();
             BindGroups();
 
             foreach (var mod in _mods)
@@ -78,14 +84,8 @@ namespace DL_Skin_Randomiser
 
         private void RandomiseButton_Click(object sender, RoutedEventArgs e)
         {
-            _mods = ModSelectionService.RandomlySelectOnePerHero(_mods)
-                .OrderBy(mod => mod.Hero)
-                .ThenBy(mod => mod.Name)
-                .ToList();
-
-            BindGroups();
-            AutoSavePreferences(showStatus: false);
-            StatusText.Text = $"Randomised {_mods.Count(mod => mod.IncludedInRandomizer && mod.Hero != "unknown")} included hero mods.";
+            RandomiseCurrentLoadout();
+            StatusText.Text = $"Randomised {_currentLoadout.Count} hero picks.";
         }
 
         private void ApplyButton_Click(object sender, RoutedEventArgs e)
@@ -93,6 +93,22 @@ namespace DL_Skin_Randomiser
             UserPreferenceService.Save(_preferencesPath, _mods, _statePath);
             ModApplyService.Apply(_statePath, _mods);
             StatusText.Text = "Applied selection to DLMM state and saved preferences. Backup created next to state.json.";
+        }
+
+        private void RandomisePlayButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                RandomiseCurrentLoadout();
+                UserPreferenceService.Save(_preferencesPath, _mods, _statePath);
+                ModApplyService.Apply(_statePath, _mods);
+                GameLaunchService.Launch(_gamePath);
+                StatusText.Text = $"Randomised {_currentLoadout.Count} picks, applied, and launched Deadlock.";
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Randomise & Play failed: {ex.Message}";
+            }
         }
 
         private void ReloadButton_Click(object sender, RoutedEventArgs e)
@@ -216,6 +232,44 @@ namespace DL_Skin_Randomiser
 
             HeroGroupsList.ItemsSource = groupedMods;
             _isBindingGroups = false;
+        }
+
+        private void RandomiseCurrentLoadout()
+        {
+            _mods = ModSelectionService.RandomlySelectOnePerHero(_mods)
+                .OrderBy(mod => mod.Hero)
+                .ThenBy(mod => mod.Name)
+                .ToList();
+
+            _currentLoadout = BuildCurrentLoadout();
+            UserPreferenceService.SaveLastSessionLoadout(_preferencesPath, _currentLoadout);
+            _preferences = UserPreferenceService.Load(_preferencesPath);
+            RefreshLoadoutSummary();
+            BindGroups();
+            AutoSavePreferences(showStatus: false);
+        }
+
+        private List<LoadoutPick> BuildCurrentLoadout()
+        {
+            return _mods
+                .Where(mod => mod.Enabled
+                    && mod.IncludedInRandomizer
+                    && string.IsNullOrWhiteSpace(mod.Folder)
+                    && NormalizeHero(mod.Hero) != "unknown")
+                .Select(mod => new LoadoutPick
+                {
+                    Hero = NormalizeHero(mod.Hero),
+                    ModName = mod.Name,
+                    RemoteId = mod.RemoteId
+                })
+                .OrderBy(pick => pick.Hero)
+                .ThenBy(pick => pick.ModName)
+                .ToList();
+        }
+
+        private void RefreshLoadoutSummary()
+        {
+            LoadoutSummaryList.ItemsSource = _currentLoadout;
         }
 
         private void RefreshFolderOptions()

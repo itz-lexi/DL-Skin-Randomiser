@@ -28,7 +28,8 @@ namespace DL_Skin_Randomiser.Services
             var result = new DlmmStateSnapshot
             {
                 Path = path,
-                ActiveProfileId = activeProfileId
+                ActiveProfileId = activeProfileId,
+                GamePath = TryGetString(stateElement, "gamePath")
             };
 
             if (localMods is not { ValueKind: JsonValueKind.Array })

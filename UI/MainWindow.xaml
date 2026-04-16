@@ -9,6 +9,11 @@
         Background="#111111">
     <DockPanel Margin="18">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button x:Name="RandomisePlayButton"
+                    Width="150"
+                    Margin="0,0,8,0"
+                    Click="RandomisePlayButton_Click"
+                    Content="Randomise &amp; Play" />
             <Button x:Name="RandomiseButton"
                     Width="140"
                     Margin="0,0,8,0"
@@ -74,6 +79,51 @@
                        VerticalAlignment="Center"
                        Foreground="#E6E6E6" />
         </StackPanel>
+
+        <Expander DockPanel.Dock="Top"
+                  IsExpanded="True"
+                  Margin="0,0,0,12">
+            <Expander.Header>
+                <TextBlock Text="Last session loadout"
+                           Foreground="#F4F4F4"
+                           FontSize="16"
+                           FontWeight="SemiBold" />
+            </Expander.Header>
+            <Border Background="#1B1B1B"
+                    BorderBrush="#303030"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Margin="0,8,0,0"
+                    Padding="12">
+                <ItemsControl x:Name="LoadoutSummaryList">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#242424"
+                                    BorderBrush="#3B3B3B"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="10,7"
+                                    Margin="0,0,8,8">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding HeroDisplay}"
+                                               Foreground="#91D18B"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding ModName}"
+                                               Foreground="#F2F2F2"
+                                               TextWrapping="Wrap"
+                                               MaxWidth="260" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </Expander>
 
         <ScrollViewer x:Name="MainScrollViewer"
                       VerticalScrollBarVisibility="Auto"

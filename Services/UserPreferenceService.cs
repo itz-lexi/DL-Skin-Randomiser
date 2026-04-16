@@ -23,6 +23,9 @@ namespace DL_Skin_Randomiser.Services
                 return new UserPreferences();
 
             var json = File.ReadAllText(path);
+            if (string.IsNullOrWhiteSpace(json))
+                return new UserPreferences();
+
             return JsonSerializer.Deserialize<UserPreferences>(json, JsonOptions) ?? new UserPreferences();
         }
 
@@ -53,7 +56,8 @@ namespace DL_Skin_Randomiser.Services
             var preferences = new UserPreferences
             {
                 StatePath = statePath,
-                CustomFolders = existingPreferences.CustomFolders
+                CustomFolders = existingPreferences.CustomFolders,
+                LastSessionLoadout = existingPreferences.LastSessionLoadout
             };
 
             foreach (var mod in mods.Where(mod => !string.IsNullOrWhiteSpace(mod.RemoteId)))
@@ -75,6 +79,13 @@ namespace DL_Skin_Randomiser.Services
                 Directory.CreateDirectory(directory);
 
             File.WriteAllText(path, JsonSerializer.Serialize(preferences, JsonOptions));
+        }
+
+        public static void SaveLastSessionLoadout(string path, List<LoadoutPick> loadout)
+        {
+            var preferences = Load(path);
+            preferences.LastSessionLoadout = loadout;
+            SavePreferences(path, preferences);
         }
 
         public static void SaveStatePath(string path, string statePath)
