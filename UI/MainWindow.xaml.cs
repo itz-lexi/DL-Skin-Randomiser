@@ -31,7 +31,7 @@ namespace DL_Skin_Randomiser
         private bool _isLoading;
 
         public List<CharacterOption> CharacterOptions { get; private set; } = [];
-        public List<string> FolderOptions { get; private set; } = [];
+        public List<CharacterOption> FolderOptions { get; private set; } = [];
 
         public MainWindow()
         {
@@ -142,6 +142,31 @@ namespace DL_Skin_Randomiser
             StatusText.Text = $"Added folder {HeroDisplayService.ToDisplayName(folderName)}.";
         }
 
+        private void RemoveFolderButton_Click(object sender, RoutedEventArgs e)
+        {
+            var folder = NormalizeFolder(FolderFilterBox.Text);
+            if (string.IsNullOrWhiteSpace(folder))
+            {
+                StatusText.Text = "Choose a folder to remove.";
+                return;
+            }
+
+            foreach (var mod in _mods.Where(mod => string.Equals(NormalizeFolder(mod.Folder), folder, StringComparison.OrdinalIgnoreCase)))
+            {
+                mod.Folder = "";
+                mod.IncludedInRandomizer = false;
+            }
+
+            UserPreferenceService.RemoveCustomFolder(_preferencesPath, folder);
+            _preferences = UserPreferenceService.Load(_preferencesPath);
+            FolderFilterBox.Text = AllFoldersFilter;
+            RefreshFolderOptions();
+            RefreshCharacterOptions();
+            BindGroups();
+            AutoSavePreferences(showStatus: false);
+            StatusText.Text = $"Removed folder {HeroDisplayService.ToDisplayName(folder)}.";
+        }
+
         private string EnsureStatePath(UserPreferences preferences)
         {
             if (!string.IsNullOrWhiteSpace(preferences.StatePath) && File.Exists(preferences.StatePath))
@@ -217,7 +242,7 @@ namespace DL_Skin_Randomiser
             var groupedMods = _mods
                 .Where(mod => CharacterMatchesFilter(mod, filter))
                 .Where(mod => FolderMatchesFilter(mod, folderFilter))
-                .GroupBy(mod => NormalizeHero(mod.Hero))
+                .GroupBy(GetSectionKey)
                 .Select(group => new HeroModGroup
                 {
                     Hero = group.Key,
@@ -231,7 +256,10 @@ namespace DL_Skin_Randomiser
                 .ToList();
 
             HeroGroupsList.ItemsSource = groupedMods;
-            _isBindingGroups = false;
+            Dispatcher.BeginInvoke(() =>
+            {
+                _isBindingGroups = false;
+            }, System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         private void RandomiseCurrentLoadout()
@@ -274,17 +302,29 @@ namespace DL_Skin_Randomiser
 
         private void RefreshFolderOptions()
         {
-            FolderOptions = _preferences.CustomFolders
+            var folderKeys = _preferences.CustomFolders
                 .Concat(_mods
                     .Where(mod => !string.IsNullOrWhiteSpace(mod.Folder))
-                    .Select(mod => HeroDisplayService.ToDisplayName(mod.Folder)))
-                .Where(folder => !string.IsNullOrWhiteSpace(folder) && NormalizeFolder(folder) != "none")
+                    .Select(mod => NormalizeFolder(mod.Folder)))
+                .Where(folder => !string.IsNullOrWhiteSpace(folder))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(folder => folder)
+                .OrderBy(folder => HeroDisplayService.ToDisplayName(folder))
                 .ToList();
 
+            FolderOptions =
+            [
+                new CharacterOption { Key = "", Name = "(None)" },
+                ..folderKeys.Select(folder => new CharacterOption
+                {
+                    Key = folder,
+                    Name = HeroDisplayService.ToDisplayName(folder)
+                })
+            ];
+
             var selectedFilter = FolderFilterBox.Text;
-            FolderFilterBox.ItemsSource = new[] { AllFoldersFilter }.Concat(FolderOptions).ToList();
+            FolderFilterBox.ItemsSource = new[] { AllFoldersFilter }
+                .Concat(FolderOptions.Where(option => !string.IsNullOrWhiteSpace(option.Key)).Select(option => option.Name))
+                .ToList();
 
             if (string.IsNullOrWhiteSpace(selectedFilter))
                 FolderFilterBox.Text = AllFoldersFilter;
@@ -379,8 +419,18 @@ namespace DL_Skin_Randomiser
 
             Dispatcher.BeginInvoke(() =>
             {
+                if (sender is ComboBox { DataContext: DlmmMod mod })
+                {
+                    if (!string.IsNullOrWhiteSpace(mod.Folder))
+                    {
+                        mod.Hero = "unknown";
+                        mod.IncludedInRandomizer = false;
+                    }
+                }
+
                 ApplyFolderExclusions();
                 RefreshFolderOptions();
+                RefreshCharacterOptions();
                 AutoSavePreferences();
             });
         }
@@ -400,7 +450,17 @@ namespace DL_Skin_Randomiser
             if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
 
-            AutoSavePreferences();
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (sender is ComboBox { DataContext: DlmmMod mod })
+                {
+                    if (!string.IsNullOrWhiteSpace(mod.Hero) && !string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase))
+                        mod.Folder = "";
+                }
+
+                RefreshFolderOptions();
+                AutoSavePreferences();
+            });
         }
 
         private void ModPreference_Changed(object sender, RoutedEventArgs e)
@@ -465,6 +525,15 @@ namespace DL_Skin_Randomiser
                 return true;
 
             return NormalizeFolder(mod.Folder).Contains(filter, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string GetSectionKey(DlmmMod mod)
+        {
+            var folder = NormalizeFolder(mod.Folder);
+            if (!string.IsNullOrWhiteSpace(folder))
+                return folder;
+
+            return NormalizeHero(mod.Hero);
         }
 
         private static string NormalizeFilter(string filter)

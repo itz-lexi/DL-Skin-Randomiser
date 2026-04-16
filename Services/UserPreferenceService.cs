@@ -113,6 +113,20 @@ namespace DL_Skin_Randomiser.Services
             SavePreferences(path, preferences);
         }
 
+        public static void RemoveCustomFolder(string path, string folderName)
+        {
+            var folder = HeroDisplayService.ToKey(folderName);
+            if (string.IsNullOrWhiteSpace(folder))
+                return;
+
+            var preferences = Load(path);
+            preferences.CustomFolders = preferences.CustomFolders
+                .Where(existingFolder => !string.Equals(existingFolder, folder, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            SavePreferences(path, preferences);
+        }
+
         private static void SavePreferences(string path, UserPreferences preferences)
         {
             var directory = Path.GetDirectoryName(path);

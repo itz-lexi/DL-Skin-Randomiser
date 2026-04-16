@@ -7,6 +7,9 @@
         mc:Ignorable="d"
         Title="Deadlock Skin Randomiser" Height="720" Width="1120"
         Background="#111111">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </Window.Resources>
     <DockPanel Margin="18">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
             <Button x:Name="RandomisePlayButton"
@@ -42,9 +45,14 @@
                      Foreground="#111111" />
             <Button x:Name="AddFolderButton"
                     Width="90"
-                    Margin="0,0,12,0"
+                    Margin="0,0,8,0"
                     Click="AddFolderButton_Click"
                     Content="Add folder" />
+            <Button x:Name="RemoveFolderButton"
+                    Width="110"
+                    Margin="0,0,12,0"
+                    Click="RemoveFolderButton_Click"
+                    Content="Remove folder" />
             <TextBlock Text="Character"
                        VerticalAlignment="Center"
                        Foreground="#CFCFCF"
@@ -228,51 +236,58 @@
                                                             </StackPanel>
 
                                                             <StackPanel Grid.Row="1" Margin="0,8,0,0">
-                                                                <TextBlock Text="Character"
-                                                                           Foreground="#AFAFAF"
-                                                                           Margin="0,0,0,3" />
-                                                                <ComboBox SelectedValue="{Binding Hero, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                          ItemsSource="{Binding CharacterOptions, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                          DisplayMemberPath="Name"
-                                                                          SelectedValuePath="Key"
-                                                                          TextSearch.TextPath="Name"
-                                                                          IsEditable="False"
-                                                                          IsTextSearchEnabled="True"
-                                                                          SelectionChanged="CharacterSelector_SelectionChanged"
-                                                                          Padding="4,2"
-                                                                          Background="White"
-                                                                          Foreground="#111111"
-                                                                          BorderBrush="#4A4A4A">
-                                                                    <ComboBox.ItemContainerStyle>
-                                                                        <Style TargetType="ComboBoxItem">
-                                                                            <Setter Property="Foreground" Value="#111111" />
-                                                                            <Setter Property="Background" Value="White" />
-                                                                            <Setter Property="Padding" Value="8,4" />
-                                                                        </Style>
-                                                                    </ComboBox.ItemContainerStyle>
-                                                                </ComboBox>
-                                                                <TextBlock Text="Folder"
-                                                                           Foreground="#AFAFAF"
-                                                                           Margin="0,8,0,3" />
-                                                                <ComboBox Text="{Binding FolderDisplay, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                          ItemsSource="{Binding FolderOptions, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                          IsEditable="True"
-                                                                          IsTextSearchEnabled="True"
-                                                                          StaysOpenOnEdit="True"
-                                                                          LostKeyboardFocus="FolderSelector_LostKeyboardFocus"
-                                                                          SelectionChanged="FolderSelector_SelectionChanged"
-                                                                          Padding="4,2"
-                                                                          Background="White"
-                                                                          Foreground="#111111"
-                                                                          BorderBrush="#4A4A4A">
-                                                                    <ComboBox.ItemContainerStyle>
-                                                                        <Style TargetType="ComboBoxItem">
-                                                                            <Setter Property="Foreground" Value="#111111" />
-                                                                            <Setter Property="Background" Value="White" />
-                                                                            <Setter Property="Padding" Value="8,4" />
-                                                                        </Style>
-                                                                    </ComboBox.ItemContainerStyle>
-                                                                </ComboBox>
+                                                                <StackPanel Visibility="{Binding ShowCharacterSelector, Converter={StaticResource BoolToVisibility}}">
+                                                                    <TextBlock Text="Character"
+                                                                               Foreground="#AFAFAF"
+                                                                               Margin="0,0,0,3" />
+                                                                    <ComboBox SelectedValue="{Binding Hero, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                              ItemsSource="{Binding CharacterOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                              DisplayMemberPath="Name"
+                                                                              SelectedValuePath="Key"
+                                                                              TextSearch.TextPath="Name"
+                                                                              IsEditable="False"
+                                                                              IsTextSearchEnabled="True"
+                                                                              SelectionChanged="CharacterSelector_SelectionChanged"
+                                                                              Padding="4,2"
+                                                                              Background="White"
+                                                                              Foreground="#111111"
+                                                                              BorderBrush="#4A4A4A">
+                                                                        <ComboBox.ItemContainerStyle>
+                                                                            <Style TargetType="ComboBoxItem">
+                                                                                <Setter Property="Foreground" Value="#111111" />
+                                                                                <Setter Property="Background" Value="White" />
+                                                                                <Setter Property="Padding" Value="8,4" />
+                                                                            </Style>
+                                                                        </ComboBox.ItemContainerStyle>
+                                                                    </ComboBox>
+                                                                </StackPanel>
+
+                                                                <StackPanel Margin="0,8,0,0"
+                                                                            Visibility="{Binding ShowFolderSelector, Converter={StaticResource BoolToVisibility}}">
+                                                                    <TextBlock Text="Folder"
+                                                                               Foreground="#AFAFAF"
+                                                                               Margin="0,0,0,3" />
+                                                                    <ComboBox SelectedValue="{Binding Folder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                              ItemsSource="{Binding FolderOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                              DisplayMemberPath="Name"
+                                                                              SelectedValuePath="Key"
+                                                                              TextSearch.TextPath="Name"
+                                                                              IsEditable="False"
+                                                                              IsTextSearchEnabled="True"
+                                                                              SelectionChanged="FolderSelector_SelectionChanged"
+                                                                              Padding="4,2"
+                                                                              Background="White"
+                                                                              Foreground="#111111"
+                                                                              BorderBrush="#4A4A4A">
+                                                                        <ComboBox.ItemContainerStyle>
+                                                                            <Style TargetType="ComboBoxItem">
+                                                                                <Setter Property="Foreground" Value="#111111" />
+                                                                                <Setter Property="Background" Value="White" />
+                                                                                <Setter Property="Padding" Value="8,4" />
+                                                                            </Style>
+                                                                        </ComboBox.ItemContainerStyle>
+                                                                    </ComboBox>
+                                                                </StackPanel>
                                                             </StackPanel>
                                                         </Grid>
                                                     </Grid>
