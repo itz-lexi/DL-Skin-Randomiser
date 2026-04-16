@@ -20,6 +20,7 @@ namespace DL_Skin_Randomiser
     {
         private const string AllCharactersFilter = "All characters";
         private const string AllFoldersFilter = "All folders";
+        private const string AllStatusesFilter = "All statuses";
 
         private readonly string _preferencesPath = UserPreferenceService.DefaultPreferencesPath;
         private string _statePath = "";
@@ -48,6 +49,7 @@ namespace DL_Skin_Randomiser
             if (string.IsNullOrWhiteSpace(_statePath))
             {
                 StatusText.Text = "Select DLMM state.json to load mods.";
+                StatePathText.Text = "";
                 _isLoading = false;
                 return;
             }
@@ -55,6 +57,7 @@ namespace DL_Skin_Randomiser
             if (!File.Exists(_statePath))
             {
                 StatusText.Text = $"DLMM state not found: {_statePath}";
+                StatePathText.Text = _statePath;
                 _isLoading = false;
                 return;
             }
@@ -70,6 +73,7 @@ namespace DL_Skin_Randomiser
             _currentLoadout = _preferences.LastSessionLoadout;
             RefreshCharacterOptions();
             RefreshFolderOptions();
+            RefreshStatusOptions();
             RefreshLoadoutSummary();
             BindGroups();
 
@@ -79,6 +83,7 @@ namespace DL_Skin_Randomiser
             }
 
             StatusText.Text = $"Loaded {_mods.Count} mods. Enabled: {_mods.Count(mod => mod.Enabled)}";
+            StatePathText.Text = _statePath;
             _isLoading = false;
         }
 
@@ -187,9 +192,13 @@ namespace DL_Skin_Randomiser
             if (!forcePrompt && File.Exists(suggestedPath))
                 return suggestedPath;
 
+            StatusText.Text = File.Exists(suggestedPath)
+                ? $"Confirm DLMM state path: {suggestedPath}"
+                : "Select DLMM state.json to finish setup.";
+
             var dialog = new OpenFileDialog
             {
-                Title = "Select DLMM state.json",
+                Title = forcePrompt ? "Confirm DLMM state.json" : "Select DLMM state.json",
                 Filter = "DLMM state.json|state.json|JSON files (*.json)|*.json|All files (*.*)|*.*",
                 CheckFileExists = true,
                 FileName = "state.json"
@@ -239,9 +248,13 @@ namespace DL_Skin_Randomiser
 
             var filter = NormalizeFilter(CharacterFilterBox.Text);
             var folderFilter = NormalizeFolder(FolderFilterBox.Text);
+            var statusFilter = NormalizeStatus(StatusFilterBox.Text);
+            var searchText = NormalizeSearch(ModSearchBox.Text);
             var groupedMods = _mods
                 .Where(mod => CharacterMatchesFilter(mod, filter))
                 .Where(mod => FolderMatchesFilter(mod, folderFilter))
+                .Where(mod => StatusMatchesFilter(mod, statusFilter))
+                .Where(mod => SearchMatchesFilter(mod, searchText))
                 .GroupBy(GetSectionKey)
                 .Select(group => new HeroModGroup
                 {
@@ -358,9 +371,28 @@ namespace DL_Skin_Randomiser
                 CharacterFilterBox.Text = selectedFilter;
         }
 
+        private void RefreshStatusOptions()
+        {
+            var selectedFilter = StatusFilterBox.Text;
+            var statuses = _mods
+                .Select(mod => NormalizeStatus(mod.Status))
+                .Where(status => !string.IsNullOrWhiteSpace(status))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(status => HeroDisplayService.ToDisplayName(status))
+                .Select(HeroDisplayService.ToDisplayName)
+                .ToList();
+
+            StatusFilterBox.ItemsSource = new[] { AllStatusesFilter }.Concat(statuses).ToList();
+
+            if (string.IsNullOrWhiteSpace(selectedFilter))
+                StatusFilterBox.Text = AllStatusesFilter;
+            else
+                StatusFilterBox.Text = selectedFilter;
+        }
+
         private void CharacterFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups)
+            if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
 
             if (CharacterFilterBox.SelectedItem is string selectedCharacter)
@@ -371,7 +403,7 @@ namespace DL_Skin_Randomiser
 
         private void CharacterFilterBox_DropDownClosed(object sender, EventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups)
+            if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
 
             BindGroups();
@@ -379,7 +411,7 @@ namespace DL_Skin_Randomiser
 
         private void CharacterFilterBox_KeyUp(object sender, KeyEventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups)
+            if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
 
             BindGroups();
@@ -387,7 +419,7 @@ namespace DL_Skin_Randomiser
 
         private void FolderFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups)
+            if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
 
             if (FolderFilterBox.SelectedItem is string selectedFolder)
@@ -398,7 +430,7 @@ namespace DL_Skin_Randomiser
 
         private void FolderFilterBox_DropDownClosed(object sender, EventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups)
+            if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
 
             BindGroups();
@@ -406,10 +438,29 @@ namespace DL_Skin_Randomiser
 
         private void FolderFilterBox_KeyUp(object sender, KeyEventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups)
+            if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
 
             BindGroups();
+        }
+
+        private void ModSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoaded || _isBindingGroups || _isLoading)
+                return;
+
+            BindGroups();
+        }
+
+        private void StatusFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded || _isBindingGroups || _isLoading)
+                return;
+
+            if (StatusFilterBox.SelectedItem is string selectedStatus)
+                StatusFilterBox.Text = selectedStatus;
+
+            Dispatcher.BeginInvoke(BindGroups);
         }
 
         private void FolderSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -527,6 +578,32 @@ namespace DL_Skin_Randomiser
             return NormalizeFolder(mod.Folder).Contains(filter, StringComparison.OrdinalIgnoreCase);
         }
 
+        private static bool StatusMatchesFilter(DlmmMod mod, string filter)
+        {
+            if (string.IsNullOrWhiteSpace(filter))
+                return true;
+
+            return NormalizeStatus(mod.Status).Contains(filter, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool SearchMatchesFilter(DlmmMod mod, string searchText)
+        {
+            if (string.IsNullOrWhiteSpace(searchText))
+                return true;
+
+            var searchableValues = new[]
+            {
+                mod.Name,
+                mod.Category,
+                mod.Status,
+                HeroDisplayService.ToDisplayName(mod.Hero),
+                HeroDisplayService.ToDisplayName(mod.Folder),
+                mod.RemoteId
+            };
+
+            return searchableValues.Any(value => value.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+        }
+
         private static string GetSectionKey(DlmmMod mod)
         {
             var folder = NormalizeFolder(mod.Folder);
@@ -547,6 +624,11 @@ namespace DL_Skin_Randomiser
                 : normalized;
         }
 
+        private static string NormalizeSearch(string searchText)
+        {
+            return searchText.Trim();
+        }
+
         private static string NormalizeHero(string hero)
         {
             return string.IsNullOrWhiteSpace(hero)
@@ -561,6 +643,17 @@ namespace DL_Skin_Randomiser
 
             var normalized = folder.Trim().ToLowerInvariant();
             return normalized == AllFoldersFilter.ToLowerInvariant()
+                ? ""
+                : normalized;
+        }
+
+        private static string NormalizeStatus(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+                return "";
+
+            var normalized = status.Trim().ToLowerInvariant();
+            return normalized == AllStatusesFilter.ToLowerInvariant()
                 ? ""
                 : normalized;
         }

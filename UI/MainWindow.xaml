@@ -9,6 +9,13 @@
         Background="#111111">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <Style TargetType="ComboBox">
+            <Setter Property="MaxDropDownHeight" Value="280" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="FontSize" Value="13" />
+        </Style>
     </Window.Resources>
     <DockPanel Margin="18">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
@@ -87,6 +94,51 @@
                        VerticalAlignment="Center"
                        Foreground="#E6E6E6" />
         </StackPanel>
+
+        <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="240" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Text="Search"
+                       VerticalAlignment="Center"
+                       Foreground="#CFCFCF"
+                       Margin="0,0,6,0" />
+            <TextBox x:Name="ModSearchBox"
+                     Grid.Column="1"
+                     Margin="0,0,12,0"
+                     VerticalContentAlignment="Center"
+                     TextChanged="ModSearchBox_TextChanged"
+                     Background="White"
+                     Foreground="#111111" />
+
+            <TextBlock Grid.Column="2"
+                       Text="Status"
+                       VerticalAlignment="Center"
+                       Foreground="#CFCFCF"
+                       Margin="0,0,6,0" />
+            <ComboBox x:Name="StatusFilterBox"
+                      Grid.Column="3"
+                      SelectionChanged="StatusFilterBox_SelectionChanged"
+                      Background="White"
+                      Foreground="#111111" />
+
+            <TextBlock Grid.Column="4"
+                       Text="DLMM"
+                       VerticalAlignment="Center"
+                       Foreground="#CFCFCF"
+                       Margin="12,0,6,0" />
+            <TextBlock x:Name="StatePathText"
+                       Grid.Column="5"
+                       VerticalAlignment="Center"
+                       Foreground="#9F9F9F"
+                       TextTrimming="CharacterEllipsis" />
+        </Grid>
 
         <Expander DockPanel.Dock="Top"
                   IsExpanded="True"

@@ -21,7 +21,6 @@ namespace DL_Skin_Randomiser.Services
             using var outerDocument = JsonDocument.Parse(json);
 
             var stateElement = GetStateElement(outerDocument.RootElement);
-            var localMods = TryGetProperty(stateElement, "localMods");
             var activeProfileId = TryGetString(stateElement, "activeProfileId");
             var enabledMods = GetEnabledMods(stateElement, activeProfileId);
 
@@ -32,10 +31,11 @@ namespace DL_Skin_Randomiser.Services
                 GamePath = TryGetString(stateElement, "gamePath")
             };
 
-            if (localMods is not { ValueKind: JsonValueKind.Array })
+            var modElements = GetModElements(stateElement);
+            if (modElements.Count == 0)
                 return result;
 
-            foreach (var modElement in localMods.Value.EnumerateArray())
+            foreach (var modElement in modElements)
             {
                 var remoteId = TryGetString(modElement, "remoteId");
                 var name = TryGetString(modElement, "name");
@@ -57,6 +57,83 @@ namespace DL_Skin_Randomiser.Services
             Console.WriteLine($"Enabled: {result.Mods.Count(mod => mod.Enabled)}");
 
             return result;
+        }
+
+        private static List<JsonElement> GetModElements(JsonElement stateElement)
+        {
+            var modsByRemoteId = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+            var modsWithoutRemoteId = new List<JsonElement>();
+
+            foreach (var modElement in EnumerateLikelyModElements(stateElement))
+            {
+                var remoteId = TryGetString(modElement, "remoteId");
+                if (string.IsNullOrWhiteSpace(remoteId))
+                {
+                    modsWithoutRemoteId.Add(modElement);
+                    continue;
+                }
+
+                if (!modsByRemoteId.ContainsKey(remoteId) || IsInstalledMod(modElement))
+                    modsByRemoteId[remoteId] = modElement;
+            }
+
+            return modsByRemoteId.Values.Concat(modsWithoutRemoteId).ToList();
+        }
+
+        private static IEnumerable<JsonElement> EnumerateLikelyModElements(JsonElement stateElement)
+        {
+            var localMods = TryGetProperty(stateElement, "localMods");
+            if (localMods is { ValueKind: JsonValueKind.Array })
+            {
+                foreach (var modElement in localMods.Value.EnumerateArray().Where(IsLikelyModElement))
+                    yield return modElement;
+            }
+
+            foreach (var modElement in EnumerateNestedArrayItems(stateElement).Where(IsLikelyModElement))
+                yield return modElement;
+        }
+
+        private static IEnumerable<JsonElement> EnumerateNestedArrayItems(JsonElement element)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    foreach (var property in element.EnumerateObject())
+                    {
+                        foreach (var nestedElement in EnumerateNestedArrayItems(property.Value))
+                            yield return nestedElement;
+                    }
+                    break;
+                case JsonValueKind.Array:
+                    foreach (var arrayElement in element.EnumerateArray())
+                    {
+                        yield return arrayElement;
+
+                        if (arrayElement.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                        {
+                            foreach (var nestedElement in EnumerateNestedArrayItems(arrayElement))
+                                yield return nestedElement;
+                        }
+                    }
+                    break;
+            }
+        }
+
+        private static bool IsLikelyModElement(JsonElement element)
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+                return false;
+
+            var remoteId = TryGetString(element, "remoteId");
+            var name = TryGetString(element, "name");
+
+            return !string.IsNullOrWhiteSpace(remoteId)
+                && !string.IsNullOrWhiteSpace(name);
+        }
+
+        private static bool IsInstalledMod(JsonElement element)
+        {
+            return string.Equals(TryGetString(element, "status"), "installed", StringComparison.OrdinalIgnoreCase);
         }
 
         public static void SaveEnabledMods(string path, IReadOnlyCollection<DlmmMod> mods)
