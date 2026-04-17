@@ -22,8 +22,12 @@ namespace DL_Skin_Randomiser.Services
                 .GroupBy(mod => mod.Hero)
                 .Select(group => group.ElementAt(Random.Next(group.Count())).RemoteId)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var ownedHeroKeys = candidateMods
+                .Where(IsRandomizerOwnedMod)
+                .Select(mod => mod.Hero)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var mod in candidateMods.Where(mod => mod.IncludedInRandomizer && mod.Hero != "unknown"))
+            foreach (var mod in candidateMods.Where(mod => ownedHeroKeys.Contains(mod.Hero) && string.IsNullOrWhiteSpace(mod.Folder)))
             {
                 mod.Enabled = IsRandomizerCandidate(mod) && selectedRemoteIds.Contains(mod.RemoteId);
             }
@@ -33,10 +37,15 @@ namespace DL_Skin_Randomiser.Services
 
         private static bool IsRandomizerCandidate(DlmmMod mod)
         {
+            return IsRandomizerOwnedMod(mod)
+                && mod.InstalledVpks.Count > 0;
+        }
+
+        private static bool IsRandomizerOwnedMod(DlmmMod mod)
+        {
             return mod.IncludedInRandomizer
                 && mod.Hero != "unknown"
-                && string.IsNullOrWhiteSpace(mod.Folder)
-                && mod.InstalledVpks.Count > 0;
+                && string.IsNullOrWhiteSpace(mod.Folder);
         }
 
         private static string NormalizeHero(string hero)

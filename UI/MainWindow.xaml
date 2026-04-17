@@ -621,18 +621,18 @@
                         <StackPanel>
                             <WrapPanel>
                                 <Button x:Name="RandomisePlayButton"
-                                        Width="148"
+                                        Width="182"
                                         Style="{StaticResource PrimaryButton}"
                                         Click="RandomisePlayButton_Click"
-                                        Content="Randomise &amp; Play" />
+                                        Content="Randomise, Apply &amp; Play" />
                                 <Button x:Name="RandomiseButton"
                                         Width="92"
                                         Click="RandomiseButton_Click"
                                         Content="Reroll" />
                                 <Button x:Name="ApplyButton"
-                                        Width="92"
+                                        Width="112"
                                         Click="ApplyButton_Click"
-                                        Content="Apply" />
+                                        Content="Apply to Game" />
                                 <Button x:Name="ReloadButton"
                                         Width="88"
                                         Click="ReloadButton_Click"
@@ -852,7 +852,7 @@
                                 <Button x:Name="DownloadUpdateButton"
                                         Width="140"
                                         Click="DownloadUpdateButton_Click"
-                                        Content="Download update"
+                                        Content="Install update"
                                         IsEnabled="False" />
                                 <Button x:Name="OpenReleasesButton"
                                         Width="120"
@@ -1026,7 +1026,7 @@
                     Margin="0,8,0,0"
                     Padding="12">
                 <StackPanel>
-                    <TextBlock Text="Read-only scan of live addon VPKs. Strong matches come from DLMM apply logs; slot-name-only matches are marked as weak guesses. Stale enabledMods entries are summarized instead of listed as active."
+                    <TextBlock Text="Live files are what the game can load now. DLMM active means DLMM state and live files agree. App staged means this app placed the file directly. Old DLMM flags are state entries without matching live files."
                                Foreground="#AEB7BA"
                                TextWrapping="Wrap"
                                Margin="0,0,0,10" />
@@ -1205,7 +1205,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border Width="188"
-                                                        Height="270"
+                                                        Height="302"
                                                         Margin="0,0,10,10"
                                                         Background="#242424"
                                                         BorderBrush="#3B3B3B"
@@ -1274,6 +1274,14 @@
                                                                           SelectionChanged="GroupSelector_SelectionChanged"
                                                                           MinHeight="28"
                                                                           Padding="7,2" />
+                                                                <Button Content="Remove from DLMM"
+                                                                        Click="RemoveModFromDlmmButton_Click"
+                                                                        Margin="0,7,0,0"
+                                                                        Padding="8,4"
+                                                                        MinHeight="26"
+                                                                        Background="#332124"
+                                                                        BorderBrush="#7A3B45"
+                                                                        Foreground="#FFDDE2" />
                                                             </StackPanel>
                                                         </Grid>
                                                     </Grid>

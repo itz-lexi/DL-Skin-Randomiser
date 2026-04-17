@@ -51,6 +51,7 @@ namespace DL_Skin_Randomiser.Services
                 var name = TryGetString(modElement, "name");
                 var isEnabledInProfile = IsEnabled(enabledMods, remoteId);
 
+                var installedVpks = GetStringArray(modElement, "installedVpks");
                 result.Mods.Add(new DlmmMod
                 {
                     Id = TryGetString(modElement, "id"),
@@ -59,7 +60,8 @@ namespace DL_Skin_Randomiser.Services
                     Status = TryGetString(modElement, "status"),
                     Category = TryGetString(modElement, "category"),
                     ImageUrl = TryGetFirstString(modElement, "images"),
-                    InstalledVpks = GetStringArray(modElement, "installedVpks"),
+                    InstalledVpks = installedVpks.ToList(),
+                    DlmmInstalledVpks = installedVpks.ToList(),
                     Hero = DetectHero(modElement, name),
                     IsInSelectedProfile = hasProfileModList || IsInProfile(enabledMods, remoteId),
                     IsEnabledInDlmmProfile = isEnabledInProfile,
@@ -264,15 +266,116 @@ namespace DL_Skin_Randomiser.Services
             {
                 outerNode[LocalConfigPropertyName] = configNode.ToJsonString();
             }
-            else
+            else if (outerNode.ContainsKey("state"))
             {
                 outerNode["state"] = stateNode.DeepClone();
+            }
+            else
+            {
+                configNode["state"] = stateNode.DeepClone();
             }
 
             var backupPath = $"{path}.bak-{DateTime.Now:yyyyMMdd-HHmmss}";
             File.Copy(path, backupPath, overwrite: false);
             File.WriteAllText(path, outerNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
             return backupPath;
+        }
+
+        public static string RemoveProfileMod(string path, string selectedProfileId, string remoteId)
+        {
+            if (string.IsNullOrWhiteSpace(remoteId))
+                throw new InvalidOperationException("The selected mod does not have a DLMM remoteId.");
+
+            var json = File.ReadAllText(path);
+            var outerNode = JsonNode.Parse(json) as JsonObject
+                ?? throw new InvalidOperationException("DLMM state root must be a JSON object.");
+
+            var localConfigWasString = outerNode[LocalConfigPropertyName] is JsonValue;
+            var configNode = GetConfigNode(outerNode);
+            var stateNode = configNode["state"] as JsonObject
+                ?? throw new InvalidOperationException("DLMM local-config is missing state.");
+
+            var activeProfileId = stateNode["activeProfileId"]?.GetValue<string>() ?? "";
+            var profilesNode = stateNode["profiles"] as JsonObject
+                ?? throw new InvalidOperationException("DLMM state is missing profiles.");
+            var profileId = !string.IsNullOrWhiteSpace(selectedProfileId) && profilesNode.ContainsKey(selectedProfileId)
+                ? selectedProfileId
+                : activeProfileId;
+            var activeProfileNode = profilesNode[profileId] as JsonObject
+                ?? throw new InvalidOperationException($"DLMM profile '{profileId}' was not found.");
+
+            var removedFromEnabledMods = RemoveEnabledMod(activeProfileNode, remoteId);
+            var removedFromProfileMods = RemoveProfileModEntry(activeProfileNode["mods"], remoteId);
+            if (!removedFromEnabledMods && !removedFromProfileMods)
+                throw new InvalidOperationException("That mod was not found in the selected DLMM profile.");
+
+            if (localConfigWasString)
+            {
+                outerNode[LocalConfigPropertyName] = configNode.ToJsonString();
+            }
+            else if (outerNode.ContainsKey("state"))
+            {
+                outerNode["state"] = stateNode.DeepClone();
+            }
+            else
+            {
+                configNode["state"] = stateNode.DeepClone();
+            }
+
+            var backupPath = $"{path}.bak-{DateTime.Now:yyyyMMdd-HHmmss}";
+            File.Copy(path, backupPath, overwrite: false);
+            File.WriteAllText(path, outerNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            return backupPath;
+        }
+
+        private static bool RemoveEnabledMod(JsonObject profileNode, string remoteId)
+        {
+            if (profileNode["enabledMods"] is not JsonObject enabledModsNode)
+                return false;
+
+            return enabledModsNode.Remove(remoteId);
+        }
+
+        private static bool RemoveProfileModEntry(JsonNode? modsNode, string remoteId)
+        {
+            if (modsNode is JsonArray modsArray)
+            {
+                var removed = false;
+                for (var index = modsArray.Count - 1; index >= 0; index--)
+                {
+                    if (!NodeRemoteIdEquals(modsArray[index], remoteId))
+                        continue;
+
+                    modsArray.RemoveAt(index);
+                    removed = true;
+                }
+
+                return removed;
+            }
+
+            if (modsNode is JsonObject modsObject)
+            {
+                var keysToRemove = modsObject
+                    .Where(property => string.Equals(property.Key, remoteId, StringComparison.OrdinalIgnoreCase)
+                        || NodeRemoteIdEquals(property.Value, remoteId))
+                    .Select(property => property.Key)
+                    .ToList();
+
+                foreach (var key in keysToRemove)
+                    modsObject.Remove(key);
+
+                return keysToRemove.Count > 0;
+            }
+
+            return false;
+        }
+
+        private static bool NodeRemoteIdEquals(JsonNode? node, string remoteId)
+        {
+            if (node is not JsonObject modObject)
+                return false;
+
+            return string.Equals(TryGetString(modObject, "remoteId"), remoteId, StringComparison.OrdinalIgnoreCase);
         }
 
         private static JsonElement GetStateElement(JsonElement root)
@@ -428,6 +531,20 @@ namespace DL_Skin_Randomiser.Services
             {
                 JsonValueKind.String => property.GetString() ?? "",
                 JsonValueKind.Number => property.GetRawText(),
+                _ => ""
+            };
+        }
+
+        private static string TryGetString(JsonObject node, string propertyName)
+        {
+            var value = node[propertyName];
+            if (value is null)
+                return "";
+
+            return value.GetValueKind() switch
+            {
+                JsonValueKind.String => value.GetValue<string>() ?? "",
+                JsonValueKind.Number => value.ToJsonString(),
                 _ => ""
             };
         }

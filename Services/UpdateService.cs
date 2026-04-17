@@ -1,5 +1,7 @@
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using DL_Skin_Randomiser.Models;
@@ -39,19 +41,19 @@ namespace DL_Skin_Randomiser.Services
             var releaseUrl = root.TryGetProperty("html_url", out var urlElement)
                 ? urlElement.GetString() ?? ""
                 : "";
-            var installerName = "";
-            var installerDownloadUrl = "";
+            var portablePackageName = "";
+            var portablePackageDownloadUrl = "";
 
             if (root.TryGetProperty("assets", out var assetsElement))
             {
                 foreach (var asset in assetsElement.EnumerateArray())
                 {
                     var assetName = asset.GetProperty("name").GetString() ?? "";
-                    if (!assetName.EndsWith("-setup.exe", StringComparison.OrdinalIgnoreCase))
+                    if (!assetName.EndsWith("-portable.zip", StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    installerName = assetName;
-                    installerDownloadUrl = asset.TryGetProperty("browser_download_url", out var downloadElement)
+                    portablePackageName = assetName;
+                    portablePackageDownloadUrl = asset.TryGetProperty("browser_download_url", out var downloadElement)
                         ? downloadElement.GetString() ?? ""
                         : "";
                     break;
@@ -67,31 +69,109 @@ namespace DL_Skin_Randomiser.Services
                 LatestVersion = latestVersion.ToString(),
                 ReleaseName = releaseName,
                 ReleaseUrl = releaseUrl,
-                InstallerName = installerName,
-                InstallerDownloadUrl = installerDownloadUrl,
+                PortablePackageName = portablePackageName,
+                PortablePackageDownloadUrl = portablePackageDownloadUrl,
                 UpdateAvailable = latestVersion > currentVersion
             };
         }
 
-        public static async Task<string> DownloadInstallerAsync(UpdateCheckResult update)
+        public static async Task PrepareAndLaunchPortableUpdateAsync(UpdateCheckResult update)
         {
-            if (!update.HasInstaller)
-                throw new InvalidOperationException("The latest GitHub release does not include a setup installer.");
+            if (!update.HasPortablePackage)
+                throw new InvalidOperationException("The latest GitHub release does not include a portable app package.");
 
-            var downloadsPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                "Downloads");
-            Directory.CreateDirectory(downloadsPath);
+            var currentExePath = Environment.ProcessPath
+                ?? throw new InvalidOperationException("Could not find the running app path.");
+            var targetDirectory = Path.GetDirectoryName(currentExePath)
+                ?? throw new InvalidOperationException("Could not find the app install folder.");
 
-            var destinationPath = Path.Combine(downloadsPath, update.InstallerName);
-            using var response = await HttpClient.GetAsync(update.InstallerDownloadUrl);
+            var updateRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "DL-Skin-Randomiser",
+                "UpdateStaging",
+                DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+            var extractionPath = Path.Combine(updateRoot, "extracted");
+            Directory.CreateDirectory(extractionPath);
+
+            var packagePath = Path.Combine(updateRoot, update.PortablePackageName);
+            using var response = await HttpClient.GetAsync(update.PortablePackageDownloadUrl);
             response.EnsureSuccessStatusCode();
 
             await using var sourceStream = await response.Content.ReadAsStreamAsync();
-            await using var destinationStream = File.Create(destinationPath);
+            await using var destinationStream = File.Create(packagePath);
             await sourceStream.CopyToAsync(destinationStream);
 
-            return destinationPath;
+            ZipFile.ExtractToDirectory(packagePath, extractionPath, overwriteFiles: true);
+            var extractedExePath = Directory
+                .EnumerateFiles(extractionPath, "DL-Skin-Randomiser.exe", SearchOption.AllDirectories)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("The portable update did not contain DL-Skin-Randomiser.exe.");
+            var sourceDirectory = Path.GetDirectoryName(extractedExePath)
+                ?? throw new InvalidOperationException("Could not find the extracted app folder.");
+
+            var scriptPath = Path.Combine(updateRoot, "apply-update.ps1");
+            File.WriteAllText(scriptPath, BuildUpdateScript(
+                Environment.ProcessId,
+                sourceDirectory,
+                targetDirectory,
+                currentExePath,
+                updateRoot));
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\""
+            };
+
+            if (!CanWriteToDirectory(targetDirectory))
+                startInfo.Verb = "runas";
+
+            Process.Start(startInfo);
+        }
+
+        private static bool CanWriteToDirectory(string directory)
+        {
+            try
+            {
+                var probePath = Path.Combine(directory, $".update-write-test-{Guid.NewGuid():N}.tmp");
+                File.WriteAllText(probePath, "");
+                File.Delete(probePath);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string BuildUpdateScript(int processId, string sourceDirectory, string targetDirectory, string exePath, string updateRoot)
+        {
+            return $$"""
+                $ErrorActionPreference = 'Stop'
+                $processId = {{processId}}
+                $sourceDirectory = '{{EscapePowerShell(sourceDirectory)}}'
+                $targetDirectory = '{{EscapePowerShell(targetDirectory)}}'
+                $exePath = '{{EscapePowerShell(exePath)}}'
+                $updateRoot = '{{EscapePowerShell(updateRoot)}}'
+
+                try {
+                    Wait-Process -Id $processId -Timeout 60 -ErrorAction SilentlyContinue
+                } catch {
+                }
+
+                Copy-Item -Path (Join-Path $sourceDirectory '*') -Destination $targetDirectory -Recurse -Force
+                Start-Process -FilePath $exePath
+
+                Start-Sleep -Seconds 2
+                Remove-Item -LiteralPath $updateRoot -Recurse -Force -ErrorAction SilentlyContinue
+                """;
+        }
+
+        private static string EscapePowerShell(string value)
+        {
+            return value.Replace("'", "''");
         }
 
         private static Version NormalizeVersion(string version)

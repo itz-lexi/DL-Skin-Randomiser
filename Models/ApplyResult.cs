@@ -8,6 +8,7 @@ namespace DL_Skin_Randomiser.Models
         public int StagedEnabledCount { get; set; }
         public int StagedDisabledCount { get; set; }
         public int StagingSkippedCount { get; set; }
+        public int StaleSourceVpkSkippedCount { get; set; }
         public bool GameFilesStaged { get; set; }
         public bool RequiresDlmmApply { get; set; }
         public string BackupPath { get; set; } = "";

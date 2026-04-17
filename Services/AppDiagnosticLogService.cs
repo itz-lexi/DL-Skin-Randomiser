@@ -79,11 +79,11 @@ namespace DL_Skin_Randomiser.Services
             builder.AppendLine($"  App staged: {addonsState.AppStagedModCount}");
             builder.AppendLine($"  Log matched: {addonsState.LogMatchedModCount}");
             builder.AppendLine($"  Hash matched: {addonsState.HashMatchedModCount}");
-            builder.AppendLine($"  Likely active: {addonsState.ConfirmedModCount + addonsState.ProfileDisambiguatedModCount}");
+            builder.AppendLine($"  Likely live: {addonsState.ConfirmedModCount + addonsState.ProfileDisambiguatedModCount}");
             builder.AppendLine($"  Weak guesses: {addonsState.SlotOnlyGuessCount}");
             builder.AppendLine($"  Ambiguous: {addonsState.AmbiguousLiveSlotCount}");
             builder.AppendLine($"  Unmatched: {addonsState.UnmatchedLiveSlotCount}");
-            builder.AppendLine($"  Stale state: {addonsState.StateOnlyModCount}");
+            builder.AppendLine($"  Old DLMM flags: {addonsState.StateOnlyModCount}");
 
             builder.AppendLine();
             builder.AppendLine("Live addon VPKs:");

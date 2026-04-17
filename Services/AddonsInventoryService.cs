@@ -122,7 +122,7 @@ namespace DL_Skin_Randomiser.Services
                         result.LogMatchedModCount++;
                         result.Diagnostics.Add(BuildModDiagnostic(
                             loggedMod,
-                            loggedMod.IsEnabledInDlmmProfile ? "Active" : "Live leftover",
+                            loggedMod.IsEnabledInDlmmProfile ? "DLMM active" : "Live leftover",
                             slot,
                             "DLMM apply log",
                             loggedMod.IsEnabledInDlmmProfile
@@ -143,7 +143,7 @@ namespace DL_Skin_Randomiser.Services
                     result.HashMatchedModCount++;
                     result.Diagnostics.Add(BuildModDiagnostic(
                         hashMatchedMod,
-                        hashMatchedMod.IsEnabledInDlmmProfile ? "Active" : "Live leftover",
+                            hashMatchedMod.IsEnabledInDlmmProfile ? "DLMM active" : "Live leftover",
                         slot,
                         "Exact VPK file match",
                         hashMatchedMod.IsEnabledInDlmmProfile
@@ -178,7 +178,7 @@ namespace DL_Skin_Randomiser.Services
                         result.ConfirmedModCount++;
                         result.Diagnostics.Add(BuildModDiagnostic(
                             mod,
-                            "Likely active",
+                            "Likely live",
                             slot,
                             "Unique slot plus DLMM state",
                             "Only one loaded mod knows this live VPK slot, and DLMM state also marks it enabled.",
@@ -214,7 +214,7 @@ namespace DL_Skin_Randomiser.Services
                     result.ProfileDisambiguatedModCount++;
                     result.Diagnostics.Add(BuildModDiagnostic(
                         enabledProfileCandidates[0],
-                        "Likely active",
+                        "Likely live",
                         slot,
                         "Shared slot plus DLMM profile",
                         "Multiple mods know this slot, but only one candidate is enabled in DLMM's profile state.",
@@ -262,11 +262,11 @@ namespace DL_Skin_Randomiser.Services
             {
                 result.Diagnostics.Add(new AddonsDiagnosticItem
                 {
-                    Status = "Stale DLMM state",
-                    ModName = $"{stateOnlyMods.Count} mods marked enabled only in state.json",
+                    Status = "Old DLMM flags",
+                    ModName = $"{stateOnlyMods.Count} mods marked enabled only in DLMM state",
                     LiveSlot = "",
                     Evidence = "enabledMods says true",
-                    Detail = "These mods are still marked enabled in DLMM state, but no live addon VPK evidence matched them. This is usually stale DLMM state, so diagnostics no longer lists each one as active.",
+                    Detail = "These mods are still marked enabled in DLMM state, but no live addon VPK evidence matched them. Diagnostics keeps them separate from skins the game can actually load.",
                     RemoteId = string.Join(", ", stateOnlyMods.Take(8).Select(mod => mod.RemoteId)),
                     SortRank = 5,
                     StatusBrush = "#AEB7BA"

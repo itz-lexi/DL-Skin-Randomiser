@@ -181,7 +181,7 @@ namespace DL_Skin_Randomiser
                 RefreshAddonsDiagnostics();
                 if (result.RequiresDlmmApply)
                 {
-                    LogDiagnosticSnapshot("Randomise & Play pending DLMM apply", $"Randomised {_currentLoadout.Count} picks and updated {GetSelectedProfileName()}. DLMM apply/rebuild is required.");
+                    LogDiagnosticSnapshot("Randomise, Apply & Play pending DLMM apply", $"Randomised {_currentLoadout.Count} picks and updated {GetSelectedProfileName()}. DLMM apply/rebuild is required.");
                     SetNotice(
                         "DLMM apply needed",
                         $"Randomised {_currentLoadout.Count} picks and updated {GetSelectedProfileName()}. Apply/rebuild in DLMM before launching Deadlock.",
@@ -191,19 +191,60 @@ namespace DL_Skin_Randomiser
                 }
 
                 GameLaunchService.Launch(_gamePath);
-                LogDiagnosticSnapshot("Randomise & Play launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock.");
+                LogDiagnosticSnapshot("Randomise, Apply & Play launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock.");
                 SetNotice("Deadlock launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock. Use Reroll before launch when you want a different set.", NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
             {
-                LogDiagnosticSnapshot("Randomise & Play failed", $"Randomise & Play failed: {ex.Message}", ex);
-                SetNotice("Launch failed", $"Randomise & Play failed: {ex.Message}", NoticeKind.Error, showBanner: true);
+                LogDiagnosticSnapshot("Randomise, Apply & Play failed", $"Randomise, Apply & Play failed: {ex.Message}", ex);
+                SetNotice("Launch failed", $"Randomise, Apply & Play failed: {ex.Message}", NoticeKind.Error, showBanner: true);
             }
         }
 
         private void ReloadButton_Click(object sender, RoutedEventArgs e)
         {
             LoadMods();
+        }
+
+        private void RemoveModFromDlmmButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not FrameworkElement { DataContext: DlmmMod mod })
+                return;
+
+            if (string.IsNullOrWhiteSpace(mod.RemoteId))
+            {
+                SetNotice("Cannot remove mod", "This mod does not have a DLMM remoteId, so it cannot be removed from the DLMM profile.", NoticeKind.Warning, showBanner: true);
+                return;
+            }
+
+            var confirmation = MessageBox.Show(
+                $"Remove '{mod.Name}' from {GetSelectedProfileName()} in DLMM?\n\nThis removes it from the selected DLMM profile, but does not delete downloaded mod files.",
+                "Remove mod from DLMM",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (confirmation != MessageBoxResult.Yes)
+                return;
+
+            try
+            {
+                ValidateApplyInputs(requireGamePath: false);
+                var backupPath = DlmmStateService.RemoveProfileMod(_statePath, _selectedProfileId, mod.RemoteId);
+                UserPreferenceService.RemoveMod(_preferencesPath, _selectedProfileId, mod.RemoteId);
+                _currentLoadout = _currentLoadout
+                    .Where(pick => !string.Equals(pick.RemoteId, mod.RemoteId, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                UserPreferenceService.SaveLastSessionLoadout(_preferencesPath, _selectedProfileId, _currentLoadout);
+                LogDiagnosticSnapshot("Mod removed from DLMM", $"Removed {mod.Name} ({mod.RemoteId}) from {GetSelectedProfileName()}. Backup: {backupPath}");
+                var profileName = GetSelectedProfileName();
+                var modName = mod.Name;
+                LoadMods();
+                SetNotice("Mod removed", $"Removed {modName} from {profileName} in DLMM. Backup created.", NoticeKind.Success, showBanner: true);
+            }
+            catch (Exception ex)
+            {
+                LogDiagnosticSnapshot("Remove mod failed", $"Could not remove {mod.Name} from DLMM: {ex.Message}", ex);
+                SetNotice("Remove failed", $"Could not remove {mod.Name} from DLMM: {ex.Message}", NoticeKind.Error, showBanner: true);
+            }
         }
 
         private void BrowseDlmmButton_Click(object sender, RoutedEventArgs e)
@@ -252,13 +293,13 @@ namespace DL_Skin_Randomiser
             {
                 var result = await UpdateService.CheckForUpdatesAsync();
                 _latestUpdate = result;
-                DownloadUpdateButton.IsEnabled = result.UpdateAvailable && result.HasInstaller;
+                DownloadUpdateButton.IsEnabled = result.UpdateAvailable && result.HasPortablePackage;
 
                 if (result.UpdateAvailable)
                 {
-                    UpdateStatusText.Text = result.HasInstaller
-                        ? $"Version {result.LatestVersion} is available. Download the installer to update."
-                        : $"Version {result.LatestVersion} is available, but no setup installer was found on the release.";
+                    UpdateStatusText.Text = result.HasPortablePackage
+                        ? $"Version {result.LatestVersion} is available. Install it here without keeping setup files."
+                        : $"Version {result.LatestVersion} is available, but no portable update package was found on the release.";
                     SetNotice(
                         "Update available",
                         $"Version {result.LatestVersion} is available. Current version: {result.CurrentVersion}.",
@@ -283,29 +324,27 @@ namespace DL_Skin_Randomiser
 
         private async void DownloadUpdateButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_latestUpdate is null || !_latestUpdate.HasInstaller)
+            if (_latestUpdate is null || !_latestUpdate.HasPortablePackage)
             {
-                SetNotice("No installer", "Check for updates first. The latest release needs a setup installer asset.", NoticeKind.Warning, showBanner: true);
+                SetNotice("No update package", "Check for updates first. The latest release needs a portable update package.", NoticeKind.Warning, showBanner: true);
                 return;
             }
 
             try
             {
                 DownloadUpdateButton.IsEnabled = false;
-                UpdateStatusText.Text = $"Downloading {_latestUpdate.InstallerName}...";
-                var installerPath = await UpdateService.DownloadInstallerAsync(_latestUpdate);
-                UpdateStatusText.Text = $"Downloaded update installer: {installerPath}";
-                SetNotice("Update downloaded", "The installer will open now. Close this app if the installer asks before updating.", NoticeKind.Success, showBanner: true);
-                Process.Start(new ProcessStartInfo(installerPath)
-                {
-                    UseShellExecute = true
-                });
+                UpdateStatusText.Text = $"Installing {_latestUpdate.PortablePackageName}...";
+                await UpdateService.PrepareAndLaunchPortableUpdateAsync(_latestUpdate);
+                UpdateStatusText.Text = "Installing update. The app will restart when it is done.";
+                SetNotice("Installing update", "The app will close, update itself, and restart. No setup file will be left in Downloads.", NoticeKind.Success, showBanner: true);
+                await Task.Delay(1000);
+                Close();
             }
             catch (Exception ex)
             {
-                DownloadUpdateButton.IsEnabled = _latestUpdate?.HasInstaller == true;
-                UpdateStatusText.Text = "Download failed.";
-                SetNotice("Download failed", $"Could not download the update installer: {ex.Message}", NoticeKind.Error, showBanner: true);
+                DownloadUpdateButton.IsEnabled = _latestUpdate?.HasPortablePackage == true;
+                UpdateStatusText.Text = "Update failed.";
+                SetNotice("Update failed", $"Could not install the update: {ex.Message}", NoticeKind.Error, showBanner: true);
             }
         }
 
@@ -617,7 +656,7 @@ namespace DL_Skin_Randomiser
         {
             AddonsDiagnosticsList.ItemsSource = _addonsState.Diagnostics;
             AddonsDiagnosticsSummaryText.Text =
-                $"{_addonsState.LiveSlotCount} live VPKs • {_addonsState.AppStagedModCount} app staged • {_addonsState.LogMatchedModCount} log matched • {_addonsState.HashMatchedModCount} hash matched • {_addonsState.ConfirmedModCount + _addonsState.ProfileDisambiguatedModCount} likely active • {_addonsState.SlotOnlyGuessCount} weak guesses • {_addonsState.UnmatchedLiveSlotCount} unmatched • {_addonsState.StateOnlyModCount} stale state";
+                $"{_addonsState.LiveSlotCount} live VPKs • {_addonsState.AppStagedModCount} app staged • {_addonsState.LogMatchedModCount} DLMM log matched • {_addonsState.HashMatchedModCount} hash matched • {_addonsState.ConfirmedModCount + _addonsState.ProfileDisambiguatedModCount} likely live • {_addonsState.SlotOnlyGuessCount} weak guesses • {_addonsState.UnmatchedLiveSlotCount} unmatched • {_addonsState.StateOnlyModCount} old DLMM flags";
         }
 
         private void LogDiagnosticSnapshot(string action, string message = "", Exception? exception = null)
@@ -1142,22 +1181,27 @@ namespace DL_Skin_Randomiser
         private string BuildApplyStatus(ApplyResult result)
         {
             var status = result.GameFilesStaged
-                ? $"Game files updated for {GetSelectedProfileName()}. In use: {result.EnabledCount}. Staged +{result.StagedEnabledCount}/-{result.StagedDisabledCount}."
+                ? $"Applied to game for {GetSelectedProfileName()}. In use: {result.EnabledCount}. Staged +{result.StagedEnabledCount}/-{result.StagedDisabledCount}."
                 : $"DLMM state updated for {GetSelectedProfileName()}. In use: {result.EnabledCount}. Open DLMM and apply/rebuild before launching the game.";
 
             if (result.ForcedDisabledCount > 0)
                 status += $" Disabled {result.ForcedDisabledCount} duplicate hero picks.";
             if (result.GameFilesStaged && result.StagingSkippedCount > 0)
                 status += $" {result.StagingSkippedCount} mods had no game files to stage.";
+            if (result.StaleSourceVpkSkippedCount > 0)
+                status += $" Ignored {result.StaleSourceVpkSkippedCount} stale source VPKs from older mod versions.";
             if (result.GameFilesStaged && !string.IsNullOrWhiteSpace(result.AddonsBackupPath))
                 status += " Backup created.";
 
             if (result.RequiresDlmmApply)
                 status += " Direct VPK staging is disabled to avoid corrupting shared slots.";
 
-            return IsDlmmRunning()
-                ? $"{status} DLMM is open, so use DLMM's apply/rebuild step now."
-                : status;
+            if (!IsDlmmRunning())
+                return status;
+
+            return result.GameFilesStaged
+                ? $"{status} DLMM is open, but no DLMM rebuild is needed for app-staged skins."
+                : $"{status} DLMM is open, so use DLMM's apply/rebuild step now.";
         }
 
         private string BuildLoadedStatus(AddonsReconciliationResult addonsState)
@@ -1190,7 +1234,7 @@ namespace DL_Skin_Randomiser
                 status += $" {addonsState.UnmatchedLiveSlotCount} live slots did not match a loaded mod.";
 
             if (addonsState.StateOnlyModCount > 0)
-                status += $" {addonsState.StateOnlyModCount} enabledMods entries look stale.";
+                status += $" {addonsState.StateOnlyModCount} old DLMM flags have no matching live files.";
 
             return status;
         }

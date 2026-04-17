@@ -19,6 +19,7 @@ namespace DL_Skin_Randomiser.Models
         public string Category { get; set; } = "";
         public string ImageUrl { get; set; } = "";
         public List<string> InstalledVpks { get; set; } = [];
+        public List<string> DlmmInstalledVpks { get; set; } = [];
         public bool IsInSelectedProfile { get; set; }
         public bool IsEnabledInDlmmProfile { get; set; }
         public List<string> ActiveVpkSlots { get; set; } = [];

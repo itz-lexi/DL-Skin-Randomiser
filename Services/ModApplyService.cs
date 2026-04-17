@@ -7,19 +7,28 @@ namespace DL_Skin_Randomiser.Services
     {
         public static ApplyResult Apply(string statePath, string gamePath, IReadOnlyCollection<DlmmMod> mods, string selectedProfileId)
         {
-            foreach (var mod in mods)
+            var profileMods = mods
+                .Where(mod => mod.IsInSelectedProfile)
+                .Where(mod => !string.IsNullOrWhiteSpace(mod.RemoteId))
+                .ToList();
+
+            foreach (var mod in profileMods)
             {
                 mod.Hero = NormalizeHero(mod.Hero);
             }
 
-            var heroMods = mods
-                .Where(IsRandomizerCandidate)
+            var ownedHeroGroups = profileMods
+                .Where(IsRandomizerOwnedMod)
+                .GroupBy(mod => mod.Hero)
                 .ToList();
 
             var forcedDisabledCount = 0;
-            foreach (var heroGroup in heroMods.GroupBy(mod => mod.Hero))
+            foreach (var heroGroup in ownedHeroGroups)
             {
-                var enabledMods = heroGroup.Where(mod => mod.Enabled).ToList();
+                var enabledMods = heroGroup
+                    .Where(mod => mod.IncludedInRandomizer)
+                    .Where(mod => mod.Enabled)
+                    .ToList();
                 if (enabledMods.Count <= 1)
                     continue;
 
@@ -30,10 +39,24 @@ namespace DL_Skin_Randomiser.Services
                 }
             }
 
-            var profileMods = mods
-                .Where(mod => mod.IsInSelectedProfile)
-                .Where(mod => !string.IsNullOrWhiteSpace(mod.RemoteId))
-                .ToList();
+            var ownedHeroKeys = ownedHeroGroups
+                .Select(group => group.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Apply only owns normal hero groups with at least one randomiser-included mod.
+            // Everything else keeps DLMM's existing enabled state.
+            foreach (var mod in profileMods)
+            {
+                if (ShouldPreserveDlmmEnabledState(mod, ownedHeroKeys))
+                {
+                    mod.Enabled = mod.IsEnabledInDlmmProfile;
+                    continue;
+                }
+
+                if (!mod.IncludedInRandomizer)
+                    mod.Enabled = false;
+            }
+
             var backupPath = DlmmStateService.SaveEnabledMods(statePath, profileMods, selectedProfileId);
             var stagingResult = ManifestGameModStagingService.Stage(gamePath, profileMods);
 
@@ -45,6 +68,7 @@ namespace DL_Skin_Randomiser.Services
                 StagedEnabledCount = stagingResult.StagedEnabledCount,
                 StagedDisabledCount = stagingResult.StagedDisabledCount,
                 StagingSkippedCount = stagingResult.StagingSkippedCount,
+                StaleSourceVpkSkippedCount = stagingResult.StaleSourceVpkSkippedCount,
                 GameFilesStaged = stagingResult.GameFilesStaged,
                 RequiresDlmmApply = stagingResult.RequiresDlmmApply,
                 BackupPath = backupPath,
@@ -61,10 +85,29 @@ namespace DL_Skin_Randomiser.Services
 
         private static bool IsRandomizerCandidate(DlmmMod mod)
         {
+            return IsRandomizerOwnedMod(mod)
+                && mod.InstalledVpks.Count > 0;
+        }
+
+        private static bool IsRandomizerOwnedMod(DlmmMod mod)
+        {
             return mod.IncludedInRandomizer
                 && mod.Hero != "unknown"
-                && string.IsNullOrWhiteSpace(mod.Folder)
-                && mod.InstalledVpks.Count > 0;
+                && string.IsNullOrWhiteSpace(mod.Folder);
+        }
+
+        private static bool ShouldPreserveDlmmEnabledState(DlmmMod mod, HashSet<string> ownedHeroKeys)
+        {
+            if (!string.IsNullOrWhiteSpace(mod.Folder))
+                return true;
+
+            if (mod.Hero == "unknown")
+                return true;
+
+            if (mod.IncludedInRandomizer)
+                return false;
+
+            return !ownedHeroKeys.Contains(mod.Hero);
         }
     }
 }

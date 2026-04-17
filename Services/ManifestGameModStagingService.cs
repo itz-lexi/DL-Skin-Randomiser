@@ -38,8 +38,28 @@ namespace DL_Skin_Randomiser.Services
                 .Where(entry => string.Equals(entry.GamePath, gamePath, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-            var ownedMods = mods
-                .Where(mod => IsAppOwnedRandomizerMod(addonsPath, mod))
+            var ownedHeroKeys = mods
+                .Where(IsRandomizerOwnedMod)
+                .Select(mod => mod.Hero)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var controlledRemoteIds = mods
+                .Where(mod => ownedHeroKeys.Contains(mod.Hero))
+                .Where(mod => string.IsNullOrWhiteSpace(mod.Folder))
+                .Where(mod => !string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase))
+                .Select(mod => mod.RemoteId)
+                .Where(remoteId => !string.IsNullOrWhiteSpace(remoteId))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var sourceSelections = mods
+                .Where(IsRandomizerOwnedMod)
+                .Select(mod => BuildSourceSelection(addonsPath, mod))
+                .Where(selection => selection.Sources.Count > 0)
+                .ToList();
+            result.StaleSourceVpkSkippedCount = sourceSelections.Sum(selection => selection.StaleSourceCount);
+            var sourceSelectionsByRemoteId = sourceSelections
+                .GroupBy(selection => selection.Mod.RemoteId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            var ownedMods = sourceSelections
+                .Select(selection => selection.Mod)
                 .ToList();
             var enabledOwnedMods = ownedMods
                 .Where(mod => mod.Enabled)
@@ -49,7 +69,8 @@ namespace DL_Skin_Randomiser.Services
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var desiredSources = enabledOwnedMods
-                .SelectMany(mod => FindSourceVpks(addonsPath, mod).Select(source => new DesiredSource(mod, source)))
+                .Where(mod => sourceSelectionsByRemoteId.ContainsKey(mod.RemoteId))
+                .SelectMany(mod => sourceSelectionsByRemoteId[mod.RemoteId].Sources.Select(source => new DesiredSource(mod, source)))
                 .ToList();
             var desiredKeys = desiredSources
                 .Select(source => BuildSourceKey(source.Mod.RemoteId, source.Source.Name))
@@ -57,6 +78,9 @@ namespace DL_Skin_Randomiser.Services
 
             foreach (var entry in activeManifestEntries)
             {
+                if (!controlledRemoteIds.Contains(entry.RemoteId))
+                    continue;
+
                 var entryKey = BuildSourceKey(entry.RemoteId, entry.SourceFileName);
                 if (desiredKeys.Contains(entryKey) && desiredRemoteIds.Contains(entry.RemoteId))
                     continue;
@@ -178,16 +202,47 @@ namespace DL_Skin_Randomiser.Services
                     StringComparer.OrdinalIgnoreCase);
         }
 
-        private static bool IsAppOwnedRandomizerMod(string addonsPath, DlmmMod mod)
+        private static bool IsRandomizerOwnedMod(DlmmMod mod)
         {
             return mod.IncludedInRandomizer
                 && !string.IsNullOrWhiteSpace(mod.RemoteId)
                 && string.IsNullOrWhiteSpace(mod.Folder)
-                && !string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase)
-                && FindSourceVpks(addonsPath, mod).Any();
+                && !string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static IEnumerable<FileInfo> FindSourceVpks(string addonsPath, DlmmMod mod)
+        private static SourceSelection BuildSourceSelection(string addonsPath, DlmmMod mod)
+        {
+            var allRemoteSources = FindAllRemoteSourceVpks(addonsPath, mod).ToList();
+            if (allRemoteSources.Count == 0)
+                return new SourceSelection(mod, [], 0);
+
+            var dlmmSourceNames = BuildDlmmSourceNameSet(mod);
+            var currentSources = dlmmSourceNames.Count == 0
+                ? allRemoteSources
+                : allRemoteSources
+                    .Where(file => dlmmSourceNames.Contains(file.Name) || dlmmSourceNames.Contains(StripRemotePrefix(file.Name)))
+                    .ToList();
+
+            var sourceVpks = currentSources.Count > 0
+                ? currentSources
+                : allRemoteSources;
+            var staleSourceCount = currentSources.Count > 0
+                ? allRemoteSources.Count - currentSources.Count
+                : 0;
+            var selectedSources = sourceVpks
+                .GroupBy(file => StripRemotePrefix(file.Name), StringComparer.OrdinalIgnoreCase)
+                .Select(group => group
+                    .OrderByDescending(file => file.LastWriteTimeUtc)
+                    .ThenByDescending(file => file.Length)
+                    .ThenBy(file => file.Name, StringComparer.OrdinalIgnoreCase)
+                    .First())
+                .OrderBy(file => file.Name)
+                .ToList();
+
+            return new SourceSelection(mod, selectedSources, staleSourceCount + sourceVpks.Count - selectedSources.Count);
+        }
+
+        private static IEnumerable<FileInfo> FindAllRemoteSourceVpks(string addonsPath, DlmmMod mod)
         {
             if (string.IsNullOrWhiteSpace(addonsPath) || !Directory.Exists(addonsPath))
                 return [];
@@ -197,6 +252,21 @@ namespace DL_Skin_Randomiser.Services
                 .Select(path => new FileInfo(path))
                 .OrderBy(file => file.Name)
                 .ToList();
+        }
+
+        private static HashSet<string> BuildDlmmSourceNameSet(DlmmMod mod)
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var installedVpk in mod.DlmmInstalledVpks.Select(Path.GetFileName))
+            {
+                if (string.IsNullOrWhiteSpace(installedVpk))
+                    continue;
+
+                names.Add(installedVpk);
+                names.Add($"{mod.RemoteId}_{installedVpk}");
+            }
+
+            return names;
         }
 
         private static bool TryDeleteOwnedLiveFile(string addonsPath, StagingManifestEntry entry)
@@ -325,6 +395,8 @@ namespace DL_Skin_Randomiser.Services
         }
 
         private sealed record DesiredSource(DlmmMod Mod, FileInfo Source);
+
+        private sealed record SourceSelection(DlmmMod Mod, List<FileInfo> Sources, int StaleSourceCount);
 
         private sealed class StagingManifest
         {

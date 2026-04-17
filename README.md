@@ -34,7 +34,7 @@ That is part of the charm, I hope.
 1. Open the app.
 2. Select the profile.
 3. Choose the skins I want in the randomiser.
-4. Hit `Randomise & Play`.
+4. Hit `Randomise, Apply & Play`.
 5. Embrace the chaos. 🐇
 
 It is meant to make modded sessions feel more playful, not turn skin picking into admin work.

@@ -149,6 +149,18 @@ namespace DL_Skin_Randomiser.Services
             SavePreferences(path, existingPreferences);
         }
 
+        public static void RemoveMod(string path, string profileId, string remoteId)
+        {
+            if (string.IsNullOrWhiteSpace(remoteId))
+                return;
+
+            var preferences = Load(path);
+            var profilePreferences = GetOrCreateProfilePreferences(preferences, profileId);
+            profilePreferences.Mods.Remove(remoteId);
+            profilePreferences.LastSessionLoadout = RemoveLoadoutPick(profilePreferences.LastSessionLoadout, remoteId);
+            SavePreferences(path, preferences);
+        }
+
         public static bool SaveLastSessionLoadout(string path, string profileId, List<LoadoutPick> loadout)
         {
             var preferences = Load(path);
@@ -377,6 +389,13 @@ namespace DL_Skin_Randomiser.Services
                     ModName = pick.ModName,
                     RemoteId = pick.RemoteId
                 })
+                .ToList();
+        }
+
+        private static List<LoadoutPick> RemoveLoadoutPick(IEnumerable<LoadoutPick> loadout, string remoteId)
+        {
+            return loadout
+                .Where(pick => !string.Equals(pick.RemoteId, remoteId, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
 
