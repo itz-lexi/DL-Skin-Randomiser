@@ -15,20 +15,24 @@ namespace DL_Skin_Randomiser.Services
                 "dev.stormix.deadlock-mod-manager",
                 "state.json");
 
-        public static DlmmStateSnapshot Load(string path)
+        public static DlmmStateSnapshot Load(string path, string selectedProfileId = "")
         {
             var json = File.ReadAllText(path);
             using var outerDocument = JsonDocument.Parse(json);
 
             var stateElement = GetStateElement(outerDocument.RootElement);
             var activeProfileId = TryGetString(stateElement, "activeProfileId");
-            var enabledMods = GetEnabledMods(stateElement, activeProfileId);
+            var profiles = GetProfiles(stateElement);
+            var profileId = ResolveProfileId(activeProfileId, selectedProfileId, profiles);
+            var enabledMods = GetEnabledMods(stateElement, profileId);
 
             var result = new DlmmStateSnapshot
             {
                 Path = path,
                 ActiveProfileId = activeProfileId,
-                GamePath = TryGetString(stateElement, "gamePath")
+                SelectedProfileId = profileId,
+                GamePath = TryGetString(stateElement, "gamePath"),
+                Profiles = profiles
             };
 
             var modElements = GetModElements(stateElement);
@@ -49,6 +53,7 @@ namespace DL_Skin_Randomiser.Services
                     Category = TryGetString(modElement, "category"),
                     ImageUrl = TryGetFirstString(modElement, "images"),
                     Hero = DetectHero(modElement, name),
+                    IsInSelectedProfile = IsInProfile(enabledMods, remoteId),
                     Enabled = IsEnabled(enabledMods, remoteId)
                 });
             }
@@ -136,7 +141,7 @@ namespace DL_Skin_Randomiser.Services
             return string.Equals(TryGetString(element, "status"), "installed", StringComparison.OrdinalIgnoreCase);
         }
 
-        public static void SaveEnabledMods(string path, IReadOnlyCollection<DlmmMod> mods)
+        public static void SaveEnabledMods(string path, IReadOnlyCollection<DlmmMod> mods, string selectedProfileId)
         {
             var json = File.ReadAllText(path);
             var outerNode = JsonNode.Parse(json) as JsonObject
@@ -150,8 +155,11 @@ namespace DL_Skin_Randomiser.Services
             var activeProfileId = stateNode["activeProfileId"]?.GetValue<string>() ?? "";
             var profilesNode = stateNode["profiles"] as JsonObject
                 ?? throw new InvalidOperationException("DLMM state is missing profiles.");
-            var activeProfileNode = profilesNode[activeProfileId] as JsonObject
-                ?? throw new InvalidOperationException($"DLMM active profile '{activeProfileId}' was not found.");
+            var profileId = !string.IsNullOrWhiteSpace(selectedProfileId) && profilesNode.ContainsKey(selectedProfileId)
+                ? selectedProfileId
+                : activeProfileId;
+            var activeProfileNode = profilesNode[profileId] as JsonObject
+                ?? throw new InvalidOperationException($"DLMM profile '{profileId}' was not found.");
 
             var enabledModsNode = activeProfileNode["enabledMods"] as JsonObject;
             if (enabledModsNode is null)
@@ -225,6 +233,57 @@ namespace DL_Skin_Randomiser.Services
                 ?? throw new InvalidOperationException("DLMM state is missing local-config.");
         }
 
+        private static List<CharacterOption> GetProfiles(JsonElement stateElement)
+        {
+            var profiles = TryGetProperty(stateElement, "profiles");
+            if (profiles is not { ValueKind: JsonValueKind.Object })
+                return [];
+
+            return profiles.Value
+                .EnumerateObject()
+                .Select(profile => new CharacterOption
+                {
+                    Key = profile.Name,
+                    Name = GetProfileDisplayName(profile.Name, profile.Value)
+                })
+                .OrderBy(profile => profile.Name)
+                .ToList();
+        }
+
+        private static string GetProfileDisplayName(string profileId, JsonElement profileElement)
+        {
+            var name = TryGetString(profileElement, "name");
+            if (!string.IsNullOrWhiteSpace(name))
+                return name;
+
+            var displayName = TryGetString(profileElement, "displayName");
+            if (!string.IsNullOrWhiteSpace(displayName))
+                return displayName;
+
+            var title = TryGetString(profileElement, "title");
+            if (!string.IsNullOrWhiteSpace(title))
+                return title;
+
+            return profileId;
+        }
+
+        private static string ResolveProfileId(string activeProfileId, string selectedProfileId, List<CharacterOption> profiles)
+        {
+            if (!string.IsNullOrWhiteSpace(selectedProfileId)
+                && profiles.Any(profile => string.Equals(profile.Key, selectedProfileId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return selectedProfileId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(activeProfileId)
+                && profiles.Any(profile => string.Equals(profile.Key, activeProfileId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return activeProfileId;
+            }
+
+            return profiles.FirstOrDefault()?.Key ?? "";
+        }
+
         private static JsonElement? GetEnabledMods(JsonElement stateElement, string activeProfileId)
         {
             if (string.IsNullOrWhiteSpace(activeProfileId))
@@ -255,6 +314,17 @@ namespace DL_Skin_Randomiser.Services
 
             return enabledEntry.TryGetProperty("enabled", out var enabledValue)
                 && enabledValue.ValueKind == JsonValueKind.True;
+        }
+
+        private static bool IsInProfile(JsonElement? enabledMods, string remoteId)
+        {
+            if (enabledMods is not { ValueKind: JsonValueKind.Object })
+                return false;
+
+            if (string.IsNullOrWhiteSpace(remoteId))
+                return false;
+
+            return enabledMods.Value.TryGetProperty(remoteId, out _);
         }
 
         private static JsonElement? TryGetProperty(JsonElement element, string propertyName)

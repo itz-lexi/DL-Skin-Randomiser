@@ -102,6 +102,8 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="150" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="170" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
@@ -129,12 +131,25 @@
                       Foreground="#111111" />
 
             <TextBlock Grid.Column="4"
+                       Text="Profile"
+                       VerticalAlignment="Center"
+                       Foreground="#CFCFCF"
+                       Margin="12,0,6,0" />
+            <ComboBox x:Name="ProfileBox"
+                      Grid.Column="5"
+                      DisplayMemberPath="Name"
+                      SelectedValuePath="Key"
+                      SelectionChanged="ProfileBox_SelectionChanged"
+                      Background="White"
+                      Foreground="#111111" />
+
+            <TextBlock Grid.Column="6"
                        Text="DLMM"
                        VerticalAlignment="Center"
                        Foreground="#CFCFCF"
                        Margin="12,0,6,0" />
             <TextBlock x:Name="StatePathText"
-                       Grid.Column="5"
+                       Grid.Column="7"
                        VerticalAlignment="Center"
                        Foreground="#9F9F9F"
                        TextTrimming="CharacterEllipsis" />

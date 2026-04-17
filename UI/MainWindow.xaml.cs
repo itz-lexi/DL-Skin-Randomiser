@@ -25,6 +25,7 @@ namespace DL_Skin_Randomiser
         private readonly string _preferencesPath = UserPreferenceService.DefaultPreferencesPath;
         private string _statePath = "";
         private string _gamePath = "";
+        private string _selectedProfileId = "";
         private List<DlmmMod> _mods = [];
         private List<LoadoutPick> _currentLoadout = [];
         private UserPreferences _preferences = new();
@@ -33,6 +34,7 @@ namespace DL_Skin_Randomiser
 
         public List<CharacterOption> CharacterOptions { get; private set; } = [];
         public List<CharacterOption> FolderOptions { get; private set; } = [];
+        public List<CharacterOption> ProfileOptions { get; private set; } = [];
 
         public MainWindow()
         {
@@ -62,18 +64,22 @@ namespace DL_Skin_Randomiser
                 return;
             }
 
-            var snapshot = DlmmStateService.Load(_statePath);
+            var snapshot = DlmmStateService.Load(_statePath, _preferences.SelectedProfileId);
             _gamePath = snapshot.GamePath;
+            _selectedProfileId = snapshot.SelectedProfileId;
+            ProfileOptions = snapshot.Profiles;
             _mods = snapshot.Mods
+                .Where(mod => mod.IsInSelectedProfile)
                 .OrderBy(mod => mod.Hero)
                 .ThenBy(mod => mod.Name)
                 .ToList();
 
-            UserPreferenceService.Apply(_mods, _preferences);
-            _currentLoadout = _preferences.LastSessionLoadout;
+            UserPreferenceService.Apply(_mods, _preferences, _selectedProfileId);
+            _currentLoadout = GetCurrentProfilePreferences().LastSessionLoadout;
             RefreshCharacterOptions();
             RefreshFolderOptions();
             RefreshStatusOptions();
+            RefreshProfileOptions();
             RefreshLoadoutSummary();
             BindGroups();
 
@@ -82,7 +88,7 @@ namespace DL_Skin_Randomiser
                 Console.WriteLine($"{mod.Name} - {mod.Enabled}");
             }
 
-            StatusText.Text = $"Loaded {_mods.Count} mods. Enabled: {_mods.Count(mod => mod.Enabled)}";
+            StatusText.Text = $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. Enabled: {_mods.Count(mod => mod.Enabled)}";
             StatePathText.Text = _statePath;
             _isLoading = false;
         }
@@ -95,9 +101,9 @@ namespace DL_Skin_Randomiser
 
         private void ApplyButton_Click(object sender, RoutedEventArgs e)
         {
-            UserPreferenceService.Save(_preferencesPath, _mods, _statePath);
-            ModApplyService.Apply(_statePath, _mods);
-            StatusText.Text = "Applied selection to DLMM state and saved preferences. Backup created next to state.json.";
+            UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
+            ModApplyService.Apply(_statePath, _mods, _selectedProfileId);
+            StatusText.Text = $"Applied selection to {GetSelectedProfileName()} and saved preferences. Backup created next to state.json.";
         }
 
         private void RandomisePlayButton_Click(object sender, RoutedEventArgs e)
@@ -105,10 +111,10 @@ namespace DL_Skin_Randomiser
             try
             {
                 RandomiseCurrentLoadout();
-                UserPreferenceService.Save(_preferencesPath, _mods, _statePath);
-                ModApplyService.Apply(_statePath, _mods);
+                UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
+                ModApplyService.Apply(_statePath, _mods, _selectedProfileId);
                 GameLaunchService.Launch(_gamePath);
-                StatusText.Text = $"Randomised {_currentLoadout.Count} picks, applied, and launched Deadlock.";
+                StatusText.Text = $"Randomised {_currentLoadout.Count} picks for {GetSelectedProfileName()}, applied, and launched Deadlock.";
             }
             catch (Exception ex)
             {
@@ -139,7 +145,7 @@ namespace DL_Skin_Randomiser
             if (string.IsNullOrWhiteSpace(folderName))
                 return;
 
-            UserPreferenceService.AddCustomFolder(_preferencesPath, folderName);
+            UserPreferenceService.AddCustomFolder(_preferencesPath, _selectedProfileId, folderName);
             _preferences = UserPreferenceService.Load(_preferencesPath);
             NewFolderTextBox.Text = "";
             RefreshFolderOptions();
@@ -162,7 +168,7 @@ namespace DL_Skin_Randomiser
                 mod.IncludedInRandomizer = false;
             }
 
-            UserPreferenceService.RemoveCustomFolder(_preferencesPath, folder);
+            UserPreferenceService.RemoveCustomFolder(_preferencesPath, _selectedProfileId, folder);
             _preferences = UserPreferenceService.Load(_preferencesPath);
             FolderFilterBox.Text = AllFoldersFilter;
             RefreshFolderOptions();
@@ -283,7 +289,7 @@ namespace DL_Skin_Randomiser
                 .ToList();
 
             _currentLoadout = BuildCurrentLoadout();
-            UserPreferenceService.SaveLastSessionLoadout(_preferencesPath, _currentLoadout);
+            UserPreferenceService.SaveLastSessionLoadout(_preferencesPath, _selectedProfileId, _currentLoadout);
             _preferences = UserPreferenceService.Load(_preferencesPath);
             RefreshLoadoutSummary();
             BindGroups();
@@ -315,7 +321,8 @@ namespace DL_Skin_Randomiser
 
         private void RefreshFolderOptions()
         {
-            var folderKeys = _preferences.CustomFolders
+            var profilePreferences = GetCurrentProfilePreferences();
+            var folderKeys = profilePreferences.CustomFolders
                 .Concat(_mods
                     .Where(mod => !string.IsNullOrWhiteSpace(mod.Folder))
                     .Select(mod => NormalizeFolder(mod.Folder)))
@@ -388,6 +395,18 @@ namespace DL_Skin_Randomiser
                 StatusFilterBox.Text = AllStatusesFilter;
             else
                 StatusFilterBox.Text = selectedFilter;
+        }
+
+        private void RefreshProfileOptions()
+        {
+            ProfileBox.ItemsSource = ProfileOptions;
+            ProfileBox.SelectedValue = _selectedProfileId;
+
+            if (ProfileBox.SelectedValue is null && ProfileOptions.Count > 0)
+            {
+                ProfileBox.SelectedValue = ProfileOptions[0].Key;
+                _selectedProfileId = ProfileOptions[0].Key;
+            }
         }
 
         private void CharacterFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -463,6 +482,23 @@ namespace DL_Skin_Randomiser
             Dispatcher.BeginInvoke(BindGroups);
         }
 
+        private void ProfileBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded || _isBindingGroups || _isLoading)
+                return;
+
+            if (ProfileBox.SelectedValue is not string selectedProfileId || string.IsNullOrWhiteSpace(selectedProfileId))
+                return;
+
+            if (string.Equals(selectedProfileId, _selectedProfileId, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            _selectedProfileId = selectedProfileId;
+            UserPreferenceService.SaveSelectedProfile(_preferencesPath, _selectedProfileId);
+            StatusText.Text = $"Loading {GetSelectedProfileName()}...";
+            LoadMods();
+        }
+
         private void FolderSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!IsLoaded || _isBindingGroups || _isLoading)
@@ -533,11 +569,24 @@ namespace DL_Skin_Randomiser
 
         private void AutoSavePreferences(bool showStatus = true)
         {
-            UserPreferenceService.Save(_preferencesPath, _mods, _statePath);
+            UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
             _preferences = UserPreferenceService.Load(_preferencesPath);
 
             if (showStatus)
                 StatusText.Text = "Preferences saved.";
+        }
+
+        private string GetSelectedProfileName()
+        {
+            return ProfileOptions
+                .FirstOrDefault(profile => string.Equals(profile.Key, _selectedProfileId, StringComparison.OrdinalIgnoreCase))
+                ?.Name
+                ?? "selected profile";
+        }
+
+        private ProfilePreferences GetCurrentProfilePreferences()
+        {
+            return UserPreferenceService.GetProfilePreferences(_preferences, _selectedProfileId, useLegacyFallback: true);
         }
 
         private void MainScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)

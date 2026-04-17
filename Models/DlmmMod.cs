@@ -17,6 +17,7 @@ namespace DL_Skin_Randomiser.Models
         public string Status { get; set; } = "";
         public string Category { get; set; } = "";
         public string ImageUrl { get; set; } = "";
+        public bool IsInSelectedProfile { get; set; }
         public string Hero
         {
             get => _hero;

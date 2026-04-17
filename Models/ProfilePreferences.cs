@@ -1,10 +1,7 @@
 namespace DL_Skin_Randomiser.Models
 {
-    public class UserPreferences
+    public class ProfilePreferences
     {
-        public string StatePath { get; set; } = "";
-        public string SelectedProfileId { get; set; } = "";
-        public Dictionary<string, ProfilePreferences> Profiles { get; set; } = [];
         public List<string> CustomFolders { get; set; } = [];
         public List<LoadoutPick> LastSessionLoadout { get; set; } = [];
         public Dictionary<string, ModPreference> Mods { get; set; } = [];

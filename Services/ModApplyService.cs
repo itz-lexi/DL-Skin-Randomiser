@@ -4,7 +4,7 @@ namespace DL_Skin_Randomiser.Services
 {
     public static class ModApplyService
     {
-        public static void Apply(string statePath, IReadOnlyCollection<DlmmMod> mods)
+        public static void Apply(string statePath, IReadOnlyCollection<DlmmMod> mods, string selectedProfileId)
         {
             foreach (var mod in mods)
             {
@@ -25,7 +25,7 @@ namespace DL_Skin_Randomiser.Services
                     extraMod.Enabled = false;
             }
 
-            DlmmStateService.SaveEnabledMods(statePath, heroMods);
+            DlmmStateService.SaveEnabledMods(statePath, heroMods, selectedProfileId);
         }
 
         private static string NormalizeHero(string hero)
