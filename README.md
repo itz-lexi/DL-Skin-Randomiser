@@ -2,19 +2,21 @@
 
 ![Lexi bunny room banner](Assets/Readme/lexi-bunny-banner.png)
 
-> A cosy little Windows app for randomising Deadlock skin mods through Deadlock Mod Manager.
+> A cozy Windows app for randomizing Deadlock skin mods through Deadlock Mod Manager.
 
-I made this for the tiny pre-game problem of having too many cute skins, too many choices, and not enough patience. The idea is simple: pick the mods you like, let the app roll a loadout, apply it, and hop into the game. ✨
+I created this for the minor pre-game problem of having too many cute skins and not enough patience. The idea is simple: choose the mods you like, let the app generate a loadout, apply it, and jump into the game. ✨
 
 ## 🌙 The Vibe
 
-This project is fully vibe-coded. No lab coat. No clipboard. Just vibes, bunny ears, and a questionable amount of confidence.
+This project is all about good vibes. No lab coat, no clipboard. Just vibes, bunny ears, and a healthy amount of confidence.
 
-It exists because the idea felt fun, useful, and just silly enough to chase. It is not trying to be some grand polished modding platform. It is a personal tool with bunny-room energy, built around my own little chaos setup and the way I actually play with friends.
+It exists because the idea seemed fun, useful, and a bit silly. It does not aim to be a polished modding platform. It is a personal tool with a playful spirit, built around my chaos setup and how I play with friends.
 
-The first release is mainly for my close friends. If you find it publicly and want to use it too, you are very welcome to, but please take it with a pinch of salt. There may be rough edges, odd choices, and moments where the app gives off strong "I was built at 1am because this sounded funny" energy. 🧂
+It is also very much vibe-coded in the AI-assisted sense: I used AI heavily to help turn the idea into a working app, while I guided the direction, tested things, tweaked the result, and kept asking "can it do this too?" 🛠️
 
-That is part of the charm, hopefully.
+The first release is mainly for my close friends. If you find it publicly and want to use it, you are welcome to, but please take it with a grain of salt. There may be rough edges, strange choices, and moments where the app feels like it was made at 1 a.m. because it sounded funny. 🧂
+
+That is part of the charm, I hope.
 
 ## ✨ What It Does
 
@@ -23,31 +25,31 @@ That is part of the charm, hopefully.
 - 🧍 Groups mods by character.
 - ✅ Lets you include or exclude mods from the randomiser.
 - 🎲 Rerolls a skin loadout.
-- 🪄 Applies the selected picks back into DLMM state.
+- 🪄 Applies the selected picks back into the DLMM state.
 - 🚀 Can launch Deadlock after applying.
 - 💾 Saves preferences per profile so your setup survives between sessions.
 
 ## 🎮 How I Use It
 
 1. Open the app.
-2. Pick the profile.
-3. Check the skins I actually want in the randomiser.
+2. Select the profile.
+3. Choose the skins I want in the randomiser.
 4. Hit `Randomise & Play`.
-5. Accept the chaos. 🐇
+5. Embrace the chaos. 🐇
 
-It is meant to make modded sessions feel a bit more playful, not turn skin picking into admin.
+It is meant to make modded sessions feel more playful, not turn skin picking into admin work.
 
 ## 🐾 Tiny Bunny Disclaimer
 
-This is not official Deadlock software. It is not an official Deadlock Mod Manager tool either.
+This is not official Deadlock software. It is also not an official Deadlock Mod Manager tool.
 
-It edits mod manager state, so please be sensible with it. Keep backups if you care about your setup, especially while this is still a friends-first, vibe-first project. I have tried to make it useful and friendly, but I am not going to pretend it has been tested against every possible mod folder ritual known to humanity.
+It edits the mod manager state, so please use it wisely. Keep backups if your setup matters to you, especially since this is still a friends-first project. I have aimed to make it useful and friendly, but I will not pretend it has been tested against every mod folder setup.
 
-Use it like you would use something handed to you by a friend with a smile, a bunny plush, and a "this worked on my machine" sticker.
+Use it like you would accept something from a friend with a smile, a bunny plush, and a "this worked on my machine" sticker.
 
 ## 🎨 Art
 
-The bunny-themed banner art is mine, added here because the project should feel a bit more like me and a bit less like a blank utility drawer. Soft room, soft chaos, cute button pressing.
+The bunny-themed banner art is mine, added here to make the project feel more like me and less like a basic utility. Soft space, soft chaos, cute button pressing.
 
 ## 💌 Feedback
 
@@ -55,4 +57,4 @@ Bug reports, confused screenshots, and "hey, this button did something weird" me
 
 Contact me on my [Discord](https://discord.gg/N8JXJqtSbh). 🐰
 
-This is a cute little chaos tool for friends, skins, and questionable late-night coding decisions. Please use it kindly. 💜
+This is a fun little chaos tool for friends, skins, and questionable late-night coding decisions. Please use it kindly. 💜
