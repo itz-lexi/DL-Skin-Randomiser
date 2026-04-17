@@ -12,6 +12,7 @@ AppPublisher=Lexi
 AppPublisherURL=https://github.com/itz-lexi/DL-Skin-Randomiser
 AppSupportURL=https://discord.gg/N8JXJqtSbh
 AppUpdatesURL=https://github.com/itz-lexi/DL-Skin-Randomiser/releases
+SetupIconFile=..\Assets\AppIcon.ico
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes

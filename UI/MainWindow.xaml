@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:DL_Skin_Randomiser"
         mc:Ignorable="d"
         Title="Deadlock Skin Randomiser" Height="760" Width="1180"
-        Icon="/Assets/CreatorWatermark.png"
+        Icon="/Assets/AppIcon.ico"
         Background="#0F1011"
         FontFamily="Segoe UI">
     <Window.Resources>
