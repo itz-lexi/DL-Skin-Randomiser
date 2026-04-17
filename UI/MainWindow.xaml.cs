@@ -61,7 +61,11 @@ namespace DL_Skin_Randomiser
             InitializeComponent();
             _noticeTimer.Interval = NoticeTickInterval;
             _noticeTimer.Tick += NoticeTimer_Tick;
-            Loaded += (_, _) => LoadMods();
+            Loaded += async (_, _) =>
+            {
+                LoadMods();
+                await CheckForUpdatesAsync(showWhenCurrent: false);
+            };
         }
 
         private void LoadMods()
@@ -198,6 +202,41 @@ namespace DL_Skin_Randomiser
             catch (Exception ex)
             {
                 SetNotice("Backup failed", $"Could not back up app setup: {ex.Message}", NoticeKind.Error, showBanner: true);
+            }
+        }
+
+        private async void CheckUpdatesButton_Click(object sender, RoutedEventArgs e)
+        {
+            await CheckForUpdatesAsync(showWhenCurrent: true);
+        }
+
+        private void OpenReleasesButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenUrl(UpdateService.ReleasesPageUrl);
+        }
+
+        private async Task CheckForUpdatesAsync(bool showWhenCurrent)
+        {
+            try
+            {
+                var result = await UpdateService.CheckForUpdatesAsync();
+                if (result.UpdateAvailable)
+                {
+                    SetNotice(
+                        "Update available",
+                        $"Version {result.LatestVersion} is available. Current version: {result.CurrentVersion}. Use Open releases to download it.",
+                        NoticeKind.Info,
+                        showBanner: true);
+                    return;
+                }
+
+                if (showWhenCurrent)
+                    SetNotice("Up to date", $"You are on the latest release: {result.CurrentVersion}.", NoticeKind.Success, showBanner: true);
+            }
+            catch (Exception ex)
+            {
+                if (showWhenCurrent)
+                    SetNotice("Update check failed", $"Could not check GitHub Releases: {ex.Message}", NoticeKind.Warning, showBanner: true);
             }
         }
 
@@ -897,12 +936,16 @@ namespace DL_Skin_Randomiser
 
         private void DiscordLink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {
-            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri)
+            OpenUrl(e.Uri.AbsoluteUri);
+            e.Handled = true;
+        }
+
+        private static void OpenUrl(string url)
+        {
+            Process.Start(new ProcessStartInfo(url)
             {
                 UseShellExecute = true
             });
-
-            e.Handled = true;
         }
 
         private void NoticeTimer_Tick(object? sender, EventArgs e)

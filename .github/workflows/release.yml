@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version tag, for example v0.1.0"
+        required: true
+        default: "v0.1.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Windows release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_type }}" -eq "tag" ? "${{ github.ref_name }}" : "${{ inputs.version }}"
+          if (-not $tag.StartsWith("v")) {
+            throw "Version must start with v, for example v0.1.0"
+          }
+
+          $version = $tag.TrimStart("v")
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Restore
+        run: dotnet restore .\DL-Skin-Randomiser.csproj
+
+      - name: Publish portable app
+        shell: pwsh
+        run: |
+          dotnet publish .\DL-Skin-Randomiser.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -o .\publish\win-x64 `
+            /p:PublishSingleFile=true `
+            /p:IncludeNativeLibrariesForSelfExtract=true `
+            /p:Version=${{ steps.version.outputs.version }} `
+            /p:InformationalVersion=${{ steps.version.outputs.tag }}
+
+      - name: Package artifacts
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $artifactDir = Join-Path (Get-Location) "artifacts"
+          New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
+
+          $zipPath = Join-Path $artifactDir "DL-Skin-Randomiser-$tag-win-x64-portable.zip"
+          Compress-Archive -Path ".\publish\win-x64\*" -DestinationPath $zipPath -Force
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc ".\installer\DL-Skin-Randomiser.iss" "/DAppVersion=$version"
+
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          Get-FileHash -Algorithm SHA256 .\artifacts\* |
+            ForEach-Object { "$($_.Hash)  $(Split-Path $_.Path -Leaf)" } |
+            Set-Content -Path ".\artifacts\SHA256SUMS.txt"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DL-Skin-Randomiser-${{ steps.version.outputs.tag }}-win-x64
+          path: artifacts/*
+
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $notesPath = Join-Path (Get-Location) "release-notes.md"
+          @"
+          ## Deadlock Skin Randomiser $tag
+
+          Download either:
+
+          - `DL-Skin-Randomiser-$tag-win-x64-setup.exe` for the installer
+          - `DL-Skin-Randomiser-$tag-win-x64-portable.zip` for the portable app
+
+          A SHA256 checksum file is included so users can verify downloads.
+          "@ | Set-Content -Path $notesPath
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag .\artifacts\* --title "Deadlock Skin Randomiser $tag" --notes-file $notesPath
+          } else {
+            gh release upload $tag .\artifacts\* --clobber
+          }
