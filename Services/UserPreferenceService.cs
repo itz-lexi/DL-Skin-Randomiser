@@ -17,6 +17,12 @@ namespace DL_Skin_Randomiser.Services
                 "DL-Skin-Randomiser",
                 "preferences.json");
 
+        public static string DefaultBackupDirectory =>
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "DL-Skin-Randomiser",
+                "Backups");
+
         public static UserPreferences Load(string path)
         {
             if (!File.Exists(path))
@@ -27,6 +33,55 @@ namespace DL_Skin_Randomiser.Services
                 return new UserPreferences();
 
             return JsonSerializer.Deserialize<UserPreferences>(json, JsonOptions) ?? new UserPreferences();
+        }
+
+        public static string Backup(string path)
+        {
+            if (!File.Exists(path))
+                SavePreferences(path, new UserPreferences());
+
+            Directory.CreateDirectory(DefaultBackupDirectory);
+            var backupPath = Path.Combine(
+                DefaultBackupDirectory,
+                $"preferences-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+
+            File.Copy(path, backupPath, overwrite: false);
+            return backupPath;
+        }
+
+        public static List<CharacterOption> ListBackups()
+        {
+            if (!Directory.Exists(DefaultBackupDirectory))
+                return [];
+
+            return Directory.GetFiles(DefaultBackupDirectory, "preferences-*.json")
+                .Select(file => new FileInfo(file))
+                .OrderByDescending(file => file.LastWriteTime)
+                .Select(file => new CharacterOption
+                {
+                    Key = file.FullName,
+                    Name = $"{file.LastWriteTime:dd MMM yyyy HH:mm} - {file.Name}"
+                })
+                .ToList();
+        }
+
+        public static string RestoreBackup(string path, string backupPath)
+        {
+            if (!File.Exists(backupPath))
+                throw new FileNotFoundException("The selected backup could not be found.", backupPath);
+
+            _ = Load(backupPath);
+
+            var beforeRestoreBackup = "";
+            if (File.Exists(path))
+                beforeRestoreBackup = Backup(path);
+
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            File.Copy(backupPath, path, overwrite: true);
+            return beforeRestoreBackup;
         }
 
         public static void Apply(List<DlmmMod> mods, UserPreferences preferences, string profileId)
@@ -94,11 +149,29 @@ namespace DL_Skin_Randomiser.Services
             SavePreferences(path, existingPreferences);
         }
 
-        public static void SaveLastSessionLoadout(string path, string profileId, List<LoadoutPick> loadout)
+        public static bool SaveLastSessionLoadout(string path, string profileId, List<LoadoutPick> loadout)
         {
             var preferences = Load(path);
             var profilePreferences = GetOrCreateProfilePreferences(preferences, profileId);
             profilePreferences.LastSessionLoadout = loadout;
+            var matchedExisting = AddRecentSessionPreset(profilePreferences, loadout);
+            SavePreferences(path, preferences);
+            return matchedExisting;
+        }
+
+        public static void SavePreset(string path, string profileId, string name, List<LoadoutPick> loadout)
+        {
+            if (loadout.Count == 0)
+                return;
+
+            var preferences = Load(path);
+            var profilePreferences = GetOrCreateProfilePreferences(preferences, profileId);
+            profilePreferences.SavedPresets.Add(new LoadoutPreset
+            {
+                Name = string.IsNullOrWhiteSpace(name) ? $"Preset {DateTime.Now:dd MMM HH:mm:ss}" : name.Trim(),
+                CreatedAt = DateTime.Now,
+                Picks = CloneLoadout(loadout)
+            });
             SavePreferences(path, preferences);
         }
 
@@ -260,6 +333,61 @@ namespace DL_Skin_Randomiser.Services
             }
 
             return profilePreferences;
+        }
+
+        private static bool AddRecentSessionPreset(ProfilePreferences profilePreferences, List<LoadoutPick> loadout)
+        {
+            if (loadout.Count == 0)
+                return false;
+
+            var matchedExisting = false;
+            var signature = BuildLoadoutSignature(loadout);
+            var existingPreset = profilePreferences.RecentSessionPresets
+                .FirstOrDefault(preset => string.Equals(BuildLoadoutSignature(preset.Picks), signature, StringComparison.OrdinalIgnoreCase));
+            if (existingPreset is not null)
+            {
+                matchedExisting = true;
+                existingPreset.Name = $"Session {DateTime.Now:dd MMM HH:mm:ss}";
+                existingPreset.CreatedAt = DateTime.Now;
+                existingPreset.Picks = CloneLoadout(loadout);
+            }
+
+            var nextPreset = existingPreset ?? new LoadoutPreset
+            {
+                Name = $"Session {DateTime.Now:dd MMM HH:mm:ss}",
+                CreatedAt = DateTime.Now,
+                Picks = CloneLoadout(loadout)
+            };
+
+            profilePreferences.RecentSessionPresets = profilePreferences.RecentSessionPresets
+                .Where(preset => !string.Equals(preset.Id, nextPreset.Id, StringComparison.OrdinalIgnoreCase))
+                .Prepend(nextPreset)
+                .Take(5)
+                .ToList();
+
+            return matchedExisting;
+        }
+
+        private static List<LoadoutPick> CloneLoadout(IEnumerable<LoadoutPick> loadout)
+        {
+            return loadout
+                .Select(pick => new LoadoutPick
+                {
+                    Hero = pick.Hero,
+                    ModName = pick.ModName,
+                    RemoteId = pick.RemoteId
+                })
+                .ToList();
+        }
+
+        private static string BuildLoadoutSignature(IEnumerable<LoadoutPick> loadout)
+        {
+            return string.Join(
+                "|",
+                loadout
+                    .Select(pick => pick.RemoteId)
+                    .Where(remoteId => !string.IsNullOrWhiteSpace(remoteId))
+                    .OrderBy(remoteId => remoteId, StringComparer.OrdinalIgnoreCase));
         }
 
         private static List<string> GetCustomFolders(UserPreferences preferences, string profileId)

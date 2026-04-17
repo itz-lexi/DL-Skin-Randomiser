@@ -16,6 +16,18 @@ namespace DL_Skin_Randomiser.Models
         public List<DlmmMod> Mods { get; set; } = [];
         public int IncludedCount => Mods.Count(mod => mod.IncludedInRandomizer);
         public int EnabledCount => Mods.Count(mod => mod.Enabled);
+        public string ModCountText => FormatCount(Mods.Count, "mod");
+        public string EnabledCountText => FormatCount(EnabledCount, "in use");
+        public string IncludedCountText => FormatCount(IncludedCount, "included");
+        public string SummaryText => $"{ModCountText} • {EnabledCountText} • {IncludedCountText}";
+
+        private static string FormatCount(int count, string label)
+        {
+            if (label == "mod")
+                return count == 1 ? "1 mod" : $"{count} mods";
+
+            return $"{count} {label}";
+        }
 
         public bool IsExpanded
         {

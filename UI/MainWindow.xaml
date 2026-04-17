@@ -10,6 +10,37 @@
         FontFamily="Segoe UI">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <SolidColorBrush x:Key="AccentPinkBrush" Color="#FF7AD9" />
+        <SolidColorBrush x:Key="AccentPurpleBrush" Color="#B76DFF" />
+        <SolidColorBrush x:Key="AccentBlueBrush" Color="#73D7FF" />
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#2A2632" />
+        <LinearGradientBrush x:Key="PrideAccentBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#73D7FF" Offset="0" />
+            <GradientStop Color="#73D7FF" Offset="0.2" />
+            <GradientStop Color="#FF7AD9" Offset="0.2" />
+            <GradientStop Color="#FF7AD9" Offset="0.4" />
+            <GradientStop Color="#F7F7F7" Offset="0.4" />
+            <GradientStop Color="#F7F7F7" Offset="0.6" />
+            <GradientStop Color="#FF7AD9" Offset="0.6" />
+            <GradientStop Color="#FF7AD9" Offset="0.8" />
+            <GradientStop Color="#73D7FF" Offset="0.8" />
+            <GradientStop Color="#73D7FF" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="PrideAccentHoverBrush" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#A5E7FF" Offset="0" />
+            <GradientStop Color="#FFA8E6" Offset="0.45" />
+            <GradientStop Color="#D5B6FF" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="PrimaryActionBrush" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#8EDFFF" Offset="0" />
+            <GradientStop Color="#FF8CDD" Offset="1" />
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="AccentSelectionBrush" Color="#2C2433" />
+        <LinearGradientBrush x:Key="AppHeaderBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#17191B" Offset="0" />
+            <GradientStop Color="#211B27" Offset="0.52" />
+            <GradientStop Color="#151D23" Offset="1" />
+        </LinearGradientBrush>
         <Style TargetType="Button">
             <Setter Property="MinHeight" Value="30" />
             <Setter Property="Padding" Value="12,5" />
@@ -36,12 +67,12 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ButtonChrome" Property="Background" Value="#303438" />
-                                <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#656B70" />
+                                <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="{StaticResource PrimaryActionBrush}" />
                                 <Setter Property="Foreground" Value="#FFFFFF" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="ButtonChrome" Property="Background" Value="#1F2224" />
-                                <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#D9F3A7" />
+                                <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="{StaticResource AccentPinkBrush}" />
                                 <Setter Property="Foreground" Value="#FFFFFF" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
@@ -53,48 +84,247 @@
             </Setter>
         </Style>
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="#D9F3A7" />
+            <Setter Property="Background" Value="{StaticResource PrimaryActionBrush}" />
             <Setter Property="Foreground" Value="#111111" />
-            <Setter Property="BorderBrush" Value="#D9F3A7" />
+            <Setter Property="BorderBrush" Value="{StaticResource AccentPinkBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#EEF2F0" />
+            <Setter Property="Background" Value="#202326" />
+            <Setter Property="Padding" Value="9,6" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemChrome"
+                                Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemChrome" Property="Background" Value="#2E2635" />
+                                <Setter Property="Foreground" Value="#FFEAF8" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemChrome" Property="Background" Value="{StaticResource AccentSelectionBrush}" />
+                                <Setter Property="Foreground" Value="#FFEAF8" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="True" />
+                                    <Condition Property="IsHighlighted" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="ItemChrome" Property="Background" Value="#34283D" />
+                                <Setter Property="Foreground" Value="#FFEAF8" />
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="ComboBox">
             <Setter Property="MaxDropDownHeight" Value="280" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="MinHeight" Value="30" />
-            <Setter Property="Background" Value="#F5F5F5" />
-            <Setter Property="Foreground" Value="#111111" />
-            <Setter Property="ItemContainerStyle">
+            <Setter Property="Padding" Value="9,4" />
+            <Setter Property="Background" Value="#202326" />
+            <Setter Property="Foreground" Value="#EEF2F0" />
+            <Setter Property="BorderBrush" Value="#3A3F43" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+            <Setter Property="Template">
                 <Setter.Value>
-                    <Style TargetType="ComboBoxItem">
-                        <Setter Property="Foreground" Value="#111111" />
-                        <Setter Property="Background" Value="#FFFFFF" />
-                        <Setter Property="Padding" Value="8,5" />
-                        <Style.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="#111111" />
-                                <Setter Property="Background" Value="#D9F3A7" />
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="28" />
+                            </Grid.ColumnDefinitions>
+                            <ToggleButton x:Name="DropDownToggle"
+                                          Grid.ColumnSpan="2"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="ComboChrome"
+                                                Background="{Binding Background, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                BorderBrush="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                BorderThickness="{Binding BorderThickness, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                CornerRadius="8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="28" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="1"
+                                                        x:Name="ArrowHitbox"
+                                                        Background="#282D31"
+                                                        BorderBrush="#3A3F43"
+                                                        BorderThickness="1,0,0,0"
+                                                        CornerRadius="0,8,8,0">
+                                                    <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                                                          Fill="{StaticResource AccentPinkBrush}"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center" />
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ComboChrome" Property="BorderBrush" Value="#6B747A" />
+                                                <Setter TargetName="ComboChrome" Property="Background" Value="#252A2D" />
+                                                <Setter TargetName="ArrowHitbox" Property="Background" Value="#32383D" />
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="ComboChrome" Property="BorderBrush" Value="{StaticResource AccentPinkBrush}" />
+                                                <Setter TargetName="ArrowHitbox" Property="Background" Value="#34283D" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <TextBlock x:Name="ContentSite"
+                                       Grid.Column="0"
+                                       Margin="{TemplateBinding Padding}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Left"
+                                       IsHitTestVisible="False"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       TextTrimming="CharacterEllipsis">
+                                <TextBlock.Text>
+                                    <PriorityBinding>
+                                        <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="SelectionBoxItem.Name" />
+                                        <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="SelectionBoxItem" />
+                                    </PriorityBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                            <TextBox x:Name="PART_EditableTextBox"
+                                     Grid.Column="0"
+                                     Margin="{TemplateBinding Padding}"
+                                     VerticalAlignment="Center"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     Foreground="{TemplateBinding Foreground}"
+                                     Focusable="True"
+                                     Visibility="Hidden"
+                                     IsReadOnly="{TemplateBinding IsReadOnly}"
+                                     Text="{Binding Text, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Popup x:Name="PART_Popup"
+                                   Grid.ColumnSpan="2"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   PopupAnimation="Fade">
+                                <Border Background="#202326"
+                                        BorderBrush="{StaticResource AccentPinkBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        MinWidth="{TemplateBinding ActualWidth}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ScrollViewer Margin="0,5"
+                                                  CanContentScroll="True">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEditable" Value="True">
+                                <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden" />
+                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
                             </Trigger>
-                            <Trigger Property="IsHighlighted" Value="True">
-                                <Setter Property="Foreground" Value="#111111" />
-                                <Setter Property="Background" Value="#D9F3A7" />
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55" />
                             </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Foreground" Value="#111111" />
-                                <Setter Property="Background" Value="#C6E990" />
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
         <Style TargetType="TextBox">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="MinHeight" Value="30" />
-            <Setter Property="Padding" Value="7,4" />
-            <Setter Property="Background" Value="#F5F5F5" />
-            <Setter Property="Foreground" Value="#111111" />
-            <Setter Property="BorderBrush" Value="#D8D8D8" />
+            <Setter Property="Padding" Value="9,4" />
+            <Setter Property="Background" Value="#202326" />
+            <Setter Property="Foreground" Value="#EEF2F0" />
+            <Setter Property="CaretBrush" Value="{StaticResource AccentPinkBrush}" />
+            <Setter Property="BorderBrush" Value="#3A3F43" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="TextBoxChrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TextBoxChrome" Property="BorderBrush" Value="#6B747A" />
+                                <Setter TargetName="TextBoxChrome" Property="Background" Value="#252A2D" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="TextBoxChrome" Property="BorderBrush" Value="{StaticResource AccentPinkBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#EDEDED" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="MinHeight" Value="22" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid MinHeight="{TemplateBinding MinHeight}"
+                              SnapsToDevicePixels="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="18" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="CheckChrome"
+                                    Width="14"
+                                    Height="14"
+                                    Background="#F4F4F4"
+                                    BorderBrush="#D8D8D8"
+                                    BorderThickness="1"
+                                    CornerRadius="2"
+                                    VerticalAlignment="Center" />
+                            <ContentPresenter Grid.Column="1"
+                                              Margin="4,0,0,0"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckChrome" Property="Background" Value="{StaticResource PrideAccentBrush}" />
+                                <Setter TargetName="CheckChrome" Property="BorderBrush" Value="{StaticResource AccentPinkBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CheckChrome" Property="BorderBrush" Value="{StaticResource AccentPinkBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style x:Key="FilterLabel" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#AEB4B8" />
@@ -115,6 +345,96 @@
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="9" />
             <Setter Property="Margin" Value="0,0,8,8" />
+        </Style>
+        <Style TargetType="Expander">
+            <Setter Property="Foreground" Value="#F4F4F4" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Expander">
+                        <DockPanel>
+                            <ToggleButton x:Name="HeaderToggle"
+                                          DockPanel.Dock="Top"
+                                          IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Padding="0"
+                                          HorizontalContentAlignment="Stretch"
+                                          Cursor="Hand">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="ExpanderHeaderChrome"
+                                                Background="Transparent"
+                                                BorderBrush="Transparent"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="2">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="22"
+                                                        Height="22"
+                                                        Background="#282D31"
+                                                        BorderBrush="#3A3F43"
+                                                        BorderThickness="1"
+                                                        CornerRadius="8"
+                                                        Margin="0,0,7,0">
+                                                    <Path x:Name="ExpanderChevron"
+                                                          Data="M 0 0 L 5 5 L 10 0"
+                                                          Stroke="{StaticResource AccentPinkBrush}"
+                                                          StrokeThickness="2"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"
+                                                          RenderTransformOrigin="0.5,0.5">
+                                                        <Path.RenderTransform>
+                                                            <RotateTransform Angle="0" />
+                                                        </Path.RenderTransform>
+                                                    </Path>
+                                                </Border>
+                                                <ContentPresenter Grid.Column="1"
+                                                                  Content="{TemplateBinding Content}"
+                                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                                  ContentStringFormat="{TemplateBinding ContentStringFormat}"
+                                                                  VerticalAlignment="Center"
+                                                                  RecognizesAccessKey="True" />
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ExpanderHeaderChrome" Property="Background" Value="#191C1E" />
+                                                <Setter TargetName="ExpanderHeaderChrome" Property="BorderBrush" Value="#30353A" />
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="ExpanderChevron" Property="RenderTransform">
+                                                    <Setter.Value>
+                                                        <RotateTransform Angle="180" />
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Setter TargetName="ExpanderHeaderChrome" Property="BorderBrush" Value="#3F3348" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                                <ContentPresenter Content="{TemplateBinding Header}"
+                                                  ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                                  ContentStringFormat="{TemplateBinding HeaderStringFormat}" />
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ExpandSite"
+                                              DockPanel.Dock="Bottom"
+                                              ContentSource="Content"
+                                              Visibility="Collapsed" />
+                        </DockPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsExpanded" Value="True">
+                                <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style x:Key="InvisibleScrollButton" TargetType="RepeatButton">
             <Setter Property="Focusable" Value="False" />
@@ -149,11 +469,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ThumbChrome" Property="Background" Value="#D9F3A7" />
-                                <Setter TargetName="ThumbChrome" Property="BorderBrush" Value="#F1FFD1" />
+                                <Setter TargetName="ThumbChrome" Property="Background" Value="{StaticResource PrideAccentBrush}" />
+                                <Setter TargetName="ThumbChrome" Property="BorderBrush" Value="{StaticResource AccentPinkBrush}" />
                             </Trigger>
                             <Trigger Property="IsDragging" Value="True">
-                                <Setter TargetName="ThumbChrome" Property="Background" Value="#F1FFD1" />
+                                <Setter TargetName="ThumbChrome" Property="Background" Value="{StaticResource PrideAccentHoverBrush}" />
                                 <Setter TargetName="ThumbChrome" Property="BorderBrush" Value="#FFFFFF" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -234,14 +554,14 @@
             <Setter Property="Minimum" Value="0" />
             <Setter Property="Maximum" Value="1" />
             <Setter Property="Background" Value="#151819" />
-            <Setter Property="Foreground" Value="#D9F3A7" />
+            <Setter Property="Foreground" Value="{StaticResource PrideAccentBrush}" />
             <Setter Property="BorderThickness" Value="0" />
         </Style>
     </Window.Resources>
     <Grid>
     <DockPanel Margin="14">
         <Border DockPanel.Dock="Top"
-                Background="#17191B"
+                Background="{StaticResource AppHeaderBrush}"
                 BorderBrush="#2B2E31"
                 BorderThickness="1"
                 CornerRadius="8"
@@ -263,8 +583,8 @@
                                    Margin="0,3,0,0" />
                     </StackPanel>
                     <Border Grid.Column="1"
-                            Background="#202326"
-                            BorderBrush="#34383C"
+                            Background="#201D25"
+                            BorderBrush="#3F3348"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="12,9">
@@ -295,8 +615,8 @@
                     </Border>
                 </Grid>
 
-                <WrapPanel>
-                    <Border Style="{StaticResource TopPanel}" MinWidth="390">
+                <StackPanel>
+                    <Border Style="{StaticResource TopPanel}" HorizontalAlignment="Left" MinWidth="390">
                         <StackPanel>
                             <WrapPanel>
                                 <Button x:Name="RandomisePlayButton"
@@ -320,17 +640,81 @@
                         </StackPanel>
                     </Border>
 
-                    <Expander Margin="0,0,8,8"
-                              VerticalAlignment="Top"
-                              IsExpanded="False">
-                        <Expander.Header>
-                            <TextBlock Text="Manage folders"
-                                       Foreground="#C8CED2"
-                                       FontWeight="SemiBold" />
-                        </Expander.Header>
-                        <Border Style="{StaticResource TopPanel}" Margin="0,8,0,0" MinWidth="650">
+                    <ToggleButton x:Name="ManageFoldersToggle"
+                                  Margin="0,0,8,8"
+                                  HorizontalContentAlignment="Stretch"
+                                  Background="#1D2022"
+                                  BorderBrush="#34383C"
+                                  BorderThickness="1"
+                                  Padding="10,7"
+                                  Cursor="Hand">
+                        <ToggleButton.Template>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <Border x:Name="ManageToggleChrome"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="8"
+                                        Padding="{TemplateBinding Padding}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="22"
+                                                Height="22"
+                                                Background="#282D31"
+                                                BorderBrush="#3A3F43"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Margin="0,0,9,0">
+                                            <Path x:Name="ManageChevron"
+                                                  Data="M 0 0 L 5 5 L 10 0"
+                                                  Stroke="{StaticResource AccentPinkBrush}"
+                                                  StrokeThickness="2"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  RenderTransformOrigin="0.5,0.5">
+                                                <Path.RenderTransform>
+                                                    <RotateTransform Angle="0" />
+                                                </Path.RenderTransform>
+                                            </Path>
+                                        </Border>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="Manage folders"
+                                                   Foreground="#E7EBED"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="ManageToggleChrome" Property="BorderBrush" Value="{StaticResource PrimaryActionBrush}" />
+                                        <Setter TargetName="ManageToggleChrome" Property="Background" Value="#202326" />
+                                    </Trigger>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="ManageToggleChrome" Property="BorderBrush" Value="{StaticResource AccentPinkBrush}" />
+                                        <Setter TargetName="ManageChevron" Property="RenderTransform">
+                                            <Setter.Value>
+                                                <RotateTransform Angle="180" />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </ToggleButton.Template>
+                    </ToggleButton>
+                    <Border Style="{StaticResource TopPanel}"
+                            Margin="0,0,8,8"
+                            Visibility="{Binding IsChecked, ElementName=ManageFoldersToggle, Converter={StaticResource BoolToVisibility}}">
                             <StackPanel>
                                 <WrapPanel>
+                                    <TextBlock Margin="0,0,8,8"
+                                               VerticalAlignment="Center"
+                                               Foreground="#AEB7BA"
+                                               Text="New folder" />
                                     <TextBox x:Name="NewFolderTextBox"
                                              Width="170"
                                              Margin="0,0,8,8"
@@ -338,28 +722,38 @@
                                     <Button x:Name="AddFolderButton"
                                             Width="100"
                                             Click="AddFolderButton_Click"
-                                            Content="Add folder" />
-                                    <ComboBox x:Name="RemoveFolderBox"
-                                              Width="150"
-                                              Margin="0,0,8,8"
-                                              DisplayMemberPath="Name"
-                                              SelectedValuePath="Key" />
-                                    <Button x:Name="RemoveFolderButton"
-                                            Width="118"
-                                            Click="RemoveFolderButton_Click"
-                                            Content="Remove" />
+                                            Content="Add" />
                                     <Button x:Name="BrowseDlmmButton"
                                             Width="110"
                                             Click="BrowseDlmmButton_Click"
                                             Content="DLMM state" />
+                                    <Button x:Name="BackupPreferencesButton"
+                                            Width="120"
+                                            Click="BackupPreferencesButton_Click"
+                                            Content="Backup setup" />
                                 </WrapPanel>
-                                <WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
                                     <TextBlock Margin="0,0,8,8"
                                                VerticalAlignment="Center"
                                                Foreground="#AEB7BA"
-                                               Text="Edit folder" />
+                                               Text="Backups" />
+                                    <ComboBox x:Name="BackupBox"
+                                              Width="360"
+                                              Margin="0,0,8,8"
+                                              DisplayMemberPath="Name"
+                                              SelectedValuePath="Key" />
+                                    <Button x:Name="RestoreBackupButton"
+                                            Width="120"
+                                            Click="RestoreBackupButton_Click"
+                                            Content="Restore" />
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <TextBlock Margin="0,0,8,8"
+                                               VerticalAlignment="Center"
+                                               Foreground="#AEB7BA"
+                                               Text="Selected folder" />
                                     <ComboBox x:Name="EditFolderBox"
-                                              Width="150"
+                                              Width="170"
                                               Margin="0,0,8,8"
                                               DisplayMemberPath="Name"
                                               SelectedValuePath="Key"
@@ -372,11 +766,14 @@
                                             Width="118"
                                             Click="RenameFolderButton_Click"
                                             Content="Rename" />
+                                    <Button x:Name="RemoveFolderButton"
+                                            Width="118"
+                                            Click="RemoveFolderButton_Click"
+                                            Content="Remove" />
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
-                    </Expander>
-                </WrapPanel>
+                </StackPanel>
 
                 <Grid Margin="0,2,0,0">
                     <Grid.ColumnDefinitions>
@@ -397,7 +794,6 @@
                                 <TextBlock Text="Use" Style="{StaticResource FilterLabel}" />
                                 <CheckBox x:Name="InUseFilterCheckBox"
                                           Content="In use"
-                                          Foreground="#EDEDED"
                                           VerticalAlignment="Center"
                                           Margin="0,6,0,0"
                                           Checked="FilterCheckBox_Changed"
@@ -408,7 +804,6 @@
                                 <TextBlock Text="Randomiser" Style="{StaticResource FilterLabel}" />
                                 <CheckBox x:Name="InRandomizerFilterCheckBox"
                                           Content="Included"
-                                          Foreground="#EDEDED"
                                           VerticalAlignment="Center"
                                           Margin="0,6,0,0"
                                           Checked="FilterCheckBox_Changed"
@@ -526,33 +921,58 @@
                     CornerRadius="8"
                     Margin="0,8,0,0"
                     Padding="12">
-                <ItemsControl x:Name="LoadoutSummaryList">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="#242424"
-                                    BorderBrush="#3B3B3B"
-                                    BorderThickness="1"
-                                    CornerRadius="8"
-                                    Padding="10,7"
-                                    Margin="0,0,8,8">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding HeroDisplay}"
-                                               Foreground="#91D18B"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding ModName}"
-                                               Foreground="#F2F2F2"
-                                               TextWrapping="Wrap"
-                                               MaxWidth="260" />
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <StackPanel>
+                    <WrapPanel Margin="0,0,0,10">
+                        <TextBlock Text="Preset name"
+                                   Style="{StaticResource FilterLabel}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,8" />
+                        <TextBox x:Name="PresetNameTextBox"
+                                 Width="180"
+                                 Margin="0,0,8,8"
+                                 VerticalContentAlignment="Center" />
+                        <Button x:Name="SavePresetButton"
+                                Width="118"
+                                Click="SavePresetButton_Click"
+                                Content="Save preset" />
+                        <ComboBox x:Name="PresetBox"
+                                  Width="280"
+                                  Margin="0,0,8,8"
+                                  DisplayMemberPath="Name"
+                                  SelectedValuePath="Key" />
+                        <Button x:Name="LoadPresetButton"
+                                Width="118"
+                                Click="LoadPresetButton_Click"
+                                Content="Load preset" />
+                    </WrapPanel>
+                    <ItemsControl x:Name="LoadoutSummaryList">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#242424"
+                                        BorderBrush="#3B3B3B"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="10,7"
+                                        Margin="0,0,8,8">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding HeroDisplay}"
+                                                   Foreground="#91D18B"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding ModName}"
+                                                   Foreground="#F2F2F2"
+                                                   TextWrapping="Wrap"
+                                                   MaxWidth="260" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
             </Border>
         </Expander>
 
@@ -577,13 +997,13 @@
                                                Foreground="#F4F4F4"
                                                FontSize="18"
                                                FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding Mods.Count, StringFormat='  {0} mods'}"
+                                    <TextBlock Text="{Binding ModCountText}"
                                                Foreground="#BDBDBD"
                                                Margin="10,2,0,0" />
-                                    <TextBlock Text="{Binding EnabledCount, StringFormat='  {0} enabled'}"
+                                    <TextBlock Text="{Binding EnabledCountText}"
                                                Foreground="#91D18B"
                                                Margin="10,2,0,0" />
-                                    <TextBlock Text="{Binding IncludedCount, StringFormat='  {0} included'}"
+                                    <TextBlock Text="{Binding IncludedCountText}"
                                                Foreground="#D5B56E"
                                                Margin="10,2,0,0" />
                                 </StackPanel>
@@ -593,7 +1013,7 @@
                                     BorderBrush="#303030"
                                     BorderThickness="1"
                                     CornerRadius="8"
-                                    Padding="16"
+                                    Padding="12"
                                     Margin="0,8,0,0">
                                 <Grid>
                                     <TextBlock Text="{Binding BackgroundHero}"
@@ -614,16 +1034,16 @@
 
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Width="210"
-                                                        Height="340"
-                                                        Margin="0,0,14,14"
+                                                <Border Width="188"
+                                                        Height="270"
+                                                        Margin="0,0,10,10"
                                                         Background="#242424"
                                                         BorderBrush="#3B3B3B"
                                                         BorderThickness="1"
                                                         CornerRadius="8">
                                                     <Grid>
                                                         <Grid.RowDefinitions>
-                                                            <RowDefinition Height="120" />
+                                                            <RowDefinition Height="94" />
                                                             <RowDefinition Height="*" />
                                                         </Grid.RowDefinitions>
 
@@ -638,7 +1058,7 @@
                                                             </Grid>
                                                         </Border>
 
-                                                        <Grid Grid.Row="1" Margin="10">
+                                                        <Grid Grid.Row="1" Margin="8">
                                                             <Grid.RowDefinitions>
                                                                 <RowDefinition Height="*" />
                                                                 <RowDefinition Height="Auto" />
@@ -648,61 +1068,42 @@
                                                                 <TextBlock Text="{Binding Name}"
                                                                            Foreground="#F2F2F2"
                                                                            FontWeight="SemiBold"
+                                                                           FontSize="12"
                                                                            TextWrapping="Wrap"
-                                                                           MaxHeight="44" />
+                                                                           MaxHeight="36" />
                                                                 <TextBlock Text="{Binding Category}"
                                                                            Foreground="#B7B7B7"
-                                                                           Margin="0,4,0,8" />
-                                                                <CheckBox Content="Include in randomiser"
-                                                                          IsChecked="{Binding IncludedInRandomizer, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                          Checked="ModPreference_Changed"
-                                                                          Unchecked="ModPreference_Changed"
-                                                                          Foreground="#EDEDED"
-                                                                          Margin="0,0,0,4" />
-                                                                <CheckBox Content="In use"
-                                                                          IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                          Checked="ModPreference_Changed"
-                                                                          Unchecked="ModPreference_Changed"
-                                                                          Foreground="#EDEDED" />
+                                                                           FontSize="12"
+                                                                           Margin="0,2,0,5" />
+                                                                <WrapPanel Margin="0,0,0,3">
+                                                                    <CheckBox Content="Randomiser"
+                                                                              IsChecked="{Binding IncludedInRandomizer, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                              Checked="ModPreference_Changed"
+                                                                              Unchecked="ModPreference_Changed"
+                                                                              Margin="0,0,10,2" />
+                                                                    <CheckBox Content="In use"
+                                                                              IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                              Checked="ModPreference_Changed"
+                                                                              Unchecked="ModPreference_Changed"
+                                                                              Margin="0,0,0,2" />
+                                                                </WrapPanel>
                                                             </StackPanel>
 
-                                                            <StackPanel Grid.Row="1" Margin="0,8,0,0">
-                                                                <StackPanel Visibility="{Binding ShowCharacterSelector, Converter={StaticResource BoolToVisibility}}">
-                                                                    <TextBlock Text="Character override"
-                                                                               Foreground="#AFAFAF"
-                                                                               Margin="0,0,0,3" />
-                                                                    <ComboBox SelectedValue="{Binding Hero, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                              ItemsSource="{Binding CharacterOptions, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                              DisplayMemberPath="Name"
-                                                                              SelectedValuePath="Key"
-                                                                              TextSearch.TextPath="Name"
-                                                                              IsEditable="False"
-                                                                              IsTextSearchEnabled="True"
-                                                                              SelectionChanged="CharacterSelector_SelectionChanged"
-                                                                              Padding="4,2"
-                                                                              Background="White"
-                                                                              Foreground="#111111"
-                                                                              BorderBrush="#4A4A4A" />
-                                                                </StackPanel>
-
-                                                                <StackPanel Margin="0,8,0,0"
-                                                                            Visibility="{Binding ShowFolderSelector, Converter={StaticResource BoolToVisibility}}">
-                                                                    <TextBlock Text="Folder"
-                                                                               Foreground="#AFAFAF"
-                                                                               Margin="0,0,0,3" />
-                                                                    <ComboBox SelectedValue="{Binding Folder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                              ItemsSource="{Binding FolderOptions, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                              DisplayMemberPath="Name"
-                                                                              SelectedValuePath="Key"
-                                                                              TextSearch.TextPath="Name"
-                                                                              IsEditable="False"
-                                                                              IsTextSearchEnabled="True"
-                                                                              SelectionChanged="FolderSelector_SelectionChanged"
-                                                                              Padding="4,2"
-                                                                              Background="White"
-                                                                              Foreground="#111111"
-                                                                              BorderBrush="#4A4A4A" />
-                                                                </StackPanel>
+                                                            <StackPanel Grid.Row="1" Margin="0,5,0,0">
+                                                                <TextBlock Text="Group"
+                                                                           Foreground="#AFAFAF"
+                                                                           FontSize="12"
+                                                                           Margin="0,0,0,3" />
+                                                                <ComboBox SelectedValue="{Binding AssignmentKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                          ItemsSource="{Binding GroupOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                          DisplayMemberPath="Name"
+                                                                          SelectedValuePath="Key"
+                                                                          TextSearch.TextPath="Name"
+                                                                          IsEditable="False"
+                                                                          IsTextSearchEnabled="True"
+                                                                          SelectionChanged="GroupSelector_SelectionChanged"
+                                                                          MinHeight="28"
+                                                                          Padding="7,2" />
                                                             </StackPanel>
                                                         </Grid>
                                                     </Grid>
@@ -729,7 +1130,7 @@
         </Grid.ColumnDefinitions>
         <Border Grid.Column="0"
                 Background="#17191B"
-                BorderBrush="#D9F3A7"
+                BorderBrush="{StaticResource AccentPinkBrush}"
                 BorderThickness="1"
                 CornerRadius="8,0,0,8"
                 Padding="14,11"
@@ -758,7 +1159,7 @@
                       Height="58"
                       Padding="6"
                       Background="#17191B"
-                      BorderBrush="#D9F3A7"
+                      BorderBrush="{StaticResource AccentPinkBrush}"
                       BorderThickness="1"
                       ToolTip="Creator and bug reports">
             <ToggleButton.Template>

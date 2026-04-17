@@ -1,0 +1,1198 @@
+{
+  "StatePath": "C:\\Users\\alexj\\AppData\\Roaming\\dev.stormix.deadlock-mod-manager\\state.json",
+  "SelectedProfileId": "default",
+  "Profiles": {
+    "default": {
+      "CustomFolders": [
+        "files",
+        "sfx",
+        "soul container",
+        "troops",
+        "ui",
+        "vfx"
+      ],
+      "LastSessionLoadout": [
+        {
+          "Hero": "abrams",
+          "ModName": "[NEW LINES] HELLBOY \u003E ABRAMS",
+          "RemoteId": "664133",
+          "HeroDisplay": "Abrams"
+        },
+        {
+          "Hero": "apollo",
+          "ModName": "Alucard - Apollo",
+          "RemoteId": "657495",
+          "HeroDisplay": "Apollo"
+        },
+        {
+          "Hero": "bebop",
+          "ModName": "[Fixed!] Goobop Skin Mod",
+          "RemoteId": "624119",
+          "HeroDisplay": "Bebop"
+        },
+        {
+          "Hero": "billy",
+          "ModName": "[Fixed!] Ram Billy Skin",
+          "RemoteId": "628204",
+          "HeroDisplay": "Billy"
+        },
+        {
+          "Hero": "calico",
+          "ModName": "Irem (Eternal Return) - Calico",
+          "RemoteId": "660496",
+          "HeroDisplay": "Calico"
+        },
+        {
+          "Hero": "celeste",
+          "ModName": "Candy Cane - Celeste",
+          "RemoteId": "654699",
+          "HeroDisplay": "Celeste"
+        },
+        {
+          "Hero": "doorman",
+          "ModName": "[BROKEN] Chell Doorman [Portal 2]",
+          "RemoteId": "624215",
+          "HeroDisplay": "Doorman"
+        },
+        {
+          "Hero": "drifter",
+          "ModName": "Summer Drifter",
+          "RemoteId": "635164",
+          "HeroDisplay": "Drifter"
+        },
+        {
+          "Hero": "dynamo",
+          "ModName": "DJ Subatomic Supernova Dynamo",
+          "RemoteId": "666185",
+          "HeroDisplay": "Dynamo"
+        },
+        {
+          "Hero": "graves",
+          "ModName": "Toon Graves",
+          "RemoteId": "664952",
+          "HeroDisplay": "Graves"
+        },
+        {
+          "Hero": "grey talon",
+          "ModName": "Minecraft Skeleton Talon",
+          "RemoteId": "563116",
+          "HeroDisplay": "Grey Talon"
+        },
+        {
+          "Hero": "haze",
+          "ModName": "Lady Strix/Epi Haze Mod",
+          "RemoteId": "657572",
+          "HeroDisplay": "Haze"
+        },
+        {
+          "Hero": "holliday",
+          "ModName": "Toon Holliday",
+          "RemoteId": "669368",
+          "HeroDisplay": "Holliday"
+        },
+        {
+          "Hero": "infernus",
+          "ModName": "Ace (One Piece) - Infernus",
+          "RemoteId": "626469",
+          "HeroDisplay": "Infernus"
+        },
+        {
+          "Hero": "ivy",
+          "ModName": "Toon Ivy (ULT FIX)",
+          "RemoteId": "628313",
+          "HeroDisplay": "Ivy"
+        },
+        {
+          "Hero": "kelvin",
+          "ModName": "Space Marine Kelvin",
+          "RemoteId": "655426",
+          "HeroDisplay": "Kelvin"
+        },
+        {
+          "Hero": "lady geist",
+          "ModName": "Joint Investigator Geist",
+          "RemoteId": "659418",
+          "HeroDisplay": "Lady Geist"
+        },
+        {
+          "Hero": "lash",
+          "ModName": "Summer Time lash Skin",
+          "RemoteId": "658719",
+          "HeroDisplay": "Lash"
+        },
+        {
+          "Hero": "mcginnis",
+          "ModName": "Guns Out McGinnis",
+          "RemoteId": "652878",
+          "HeroDisplay": "Mcginnis"
+        },
+        {
+          "Hero": "mina",
+          "ModName": "Toon Mina (UPDATED 02/17/26)",
+          "RemoteId": "630226",
+          "HeroDisplay": "Mina"
+        },
+        {
+          "Hero": "mirage",
+          "ModName": "Poignant Professor Mirage",
+          "RemoteId": "649493",
+          "HeroDisplay": "Mirage"
+        },
+        {
+          "Hero": "mo \u0026 krill",
+          "ModName": "[Fixed!] Mo and Krill dapper skin (DL nightshift)",
+          "RemoteId": "619335",
+          "HeroDisplay": "Mo \u0026 Krill"
+        },
+        {
+          "Hero": "paige",
+          "ModName": "Toon Paige",
+          "RemoteId": "663264",
+          "HeroDisplay": "Paige"
+        },
+        {
+          "Hero": "paradox",
+          "ModName": "Toon Paradox",
+          "RemoteId": "667315",
+          "HeroDisplay": "Paradox"
+        },
+        {
+          "Hero": "pocket",
+          "ModName": "Pocket \u2014 The Hidden Prince",
+          "RemoteId": "664612",
+          "HeroDisplay": "Pocket"
+        },
+        {
+          "Hero": "rem",
+          "ModName": "El Rem",
+          "RemoteId": "660144",
+          "HeroDisplay": "Rem"
+        },
+        {
+          "Hero": "seven",
+          "ModName": "Neon Seven",
+          "RemoteId": "663179",
+          "HeroDisplay": "Seven"
+        },
+        {
+          "Hero": "shiv",
+          "ModName": "Big Krillin: Shriv",
+          "RemoteId": "660501",
+          "HeroDisplay": "Shiv"
+        },
+        {
+          "Hero": "silver",
+          "ModName": "Girlfailure Silver",
+          "RemoteId": "663317",
+          "HeroDisplay": "Silver"
+        },
+        {
+          "Hero": "sinclair",
+          "ModName": "Mr. Puzzles SMG4 for Sinclair!",
+          "RemoteId": "667469",
+          "HeroDisplay": "Sinclair"
+        },
+        {
+          "Hero": "venator",
+          "ModName": "CT SAS Venator | With Sounds!",
+          "RemoteId": "655351",
+          "HeroDisplay": "Venator"
+        },
+        {
+          "Hero": "victor",
+          "ModName": "Springtrap Victor",
+          "RemoteId": "644152",
+          "HeroDisplay": "Victor"
+        },
+        {
+          "Hero": "vindicta",
+          "ModName": "Ghost Bride Vindicta",
+          "RemoteId": "663268",
+          "HeroDisplay": "Vindicta"
+        },
+        {
+          "Hero": "viscous",
+          "ModName": "Gummigoo Viscous",
+          "RemoteId": "668400",
+          "HeroDisplay": "Viscous"
+        },
+        {
+          "Hero": "vyper",
+          "ModName": "Slork Viper",
+          "RemoteId": "661244",
+          "HeroDisplay": "Vyper"
+        },
+        {
+          "Hero": "warden",
+          "ModName": "Warden Remodel mod",
+          "RemoteId": "666724",
+          "HeroDisplay": "Warden"
+        },
+        {
+          "Hero": "wraith",
+          "ModName": "Toon Wraith",
+          "RemoteId": "628665",
+          "HeroDisplay": "Wraith"
+        },
+        {
+          "Hero": "yamato",
+          "ModName": "2B | Yamato Skin",
+          "RemoteId": "569650",
+          "HeroDisplay": "Yamato"
+        }
+      ],
+      "ExpandedSections": [],
+      "Mods": {
+        "664133": {
+          "RemoteId": "664133",
+          "Hero": "abrams",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "657495": {
+          "RemoteId": "657495",
+          "Hero": "apollo",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "628204": {
+          "RemoteId": "628204",
+          "Hero": "billy",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "660496": {
+          "RemoteId": "660496",
+          "Hero": "calico",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "654699": {
+          "RemoteId": "654699",
+          "Hero": "celeste",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "624215": {
+          "RemoteId": "624215",
+          "Hero": "doorman",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "635164": {
+          "RemoteId": "635164",
+          "Hero": "drifter",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "666185": {
+          "RemoteId": "666185",
+          "Hero": "dynamo",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "659478": {
+          "RemoteId": "659478",
+          "Hero": "dynamo",
+          "Folder": "vfx",
+          "IncludedInRandomizer": false
+        },
+        "664952": {
+          "RemoteId": "664952",
+          "Hero": "graves",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "657572": {
+          "RemoteId": "657572",
+          "Hero": "haze",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "624372": {
+          "RemoteId": "624372",
+          "Hero": "holliday",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "87984": {
+          "RemoteId": "87984",
+          "Hero": "holliday",
+          "Folder": "sfx",
+          "IncludedInRandomizer": false
+        },
+        "669368": {
+          "RemoteId": "669368",
+          "Hero": "holliday",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "626469": {
+          "RemoteId": "626469",
+          "Hero": "infernus",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "628313": {
+          "RemoteId": "628313",
+          "Hero": "ivy",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "655426": {
+          "RemoteId": "655426",
+          "Hero": "kelvin",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "658719": {
+          "RemoteId": "658719",
+          "Hero": "lash",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "652878": {
+          "RemoteId": "652878",
+          "Hero": "mcginnis",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "630226": {
+          "RemoteId": "630226",
+          "Hero": "mina",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "649493": {
+          "RemoteId": "649493",
+          "Hero": "mirage",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "619335": {
+          "RemoteId": "619335",
+          "Hero": "mo \u0026 krill",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "663264": {
+          "RemoteId": "663264",
+          "Hero": "paige",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "667315": {
+          "RemoteId": "667315",
+          "Hero": "paradox",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "664612": {
+          "RemoteId": "664612",
+          "Hero": "pocket",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "660144": {
+          "RemoteId": "660144",
+          "Hero": "rem",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "663179": {
+          "RemoteId": "663179",
+          "Hero": "seven",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "663317": {
+          "RemoteId": "663317",
+          "Hero": "silver",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "667469": {
+          "RemoteId": "667469",
+          "Hero": "sinclair",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "624119": {
+          "RemoteId": "624119",
+          "Hero": "bebop",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "601444": {
+          "RemoteId": "601444",
+          "Hero": "unknown",
+          "Folder": "ui",
+          "IncludedInRandomizer": false
+        },
+        "659901": {
+          "RemoteId": "659901",
+          "Hero": "unknown",
+          "Folder": "ui",
+          "IncludedInRandomizer": false
+        },
+        "86302": {
+          "RemoteId": "86302",
+          "Hero": "unknown",
+          "Folder": "sfx",
+          "IncludedInRandomizer": false
+        },
+        "662337": {
+          "RemoteId": "662337",
+          "Hero": "unknown",
+          "Folder": "ui",
+          "IncludedInRandomizer": false
+        },
+        "660501": {
+          "RemoteId": "660501",
+          "Hero": "shiv",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "659246": {
+          "RemoteId": "659246",
+          "Hero": "unknown",
+          "Folder": "soul container",
+          "IncludedInRandomizer": false
+        },
+        "655927": {
+          "RemoteId": "655927",
+          "Hero": "unknown",
+          "Folder": "ui",
+          "IncludedInRandomizer": false
+        },
+        "87616": {
+          "RemoteId": "87616",
+          "Hero": "unknown",
+          "Folder": "sfx",
+          "IncludedInRandomizer": false
+        },
+        "650427": {
+          "RemoteId": "650427",
+          "Hero": "unknown",
+          "Folder": "ui",
+          "IncludedInRandomizer": false
+        },
+        "83604": {
+          "RemoteId": "83604",
+          "Hero": "unknown",
+          "Folder": "sfx",
+          "IncludedInRandomizer": false
+        },
+        "659418": {
+          "RemoteId": "659418",
+          "Hero": "lady geist",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "82099": {
+          "RemoteId": "82099",
+          "Hero": "unknown",
+          "Folder": "sfx",
+          "IncludedInRandomizer": false
+        },
+        "563116": {
+          "RemoteId": "563116",
+          "Hero": "grey talon",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "637275": {
+          "RemoteId": "637275",
+          "Hero": "unknown",
+          "Folder": "ui",
+          "IncludedInRandomizer": false
+        },
+        "623518": {
+          "RemoteId": "623518",
+          "Hero": "unknown",
+          "Folder": "ui",
+          "IncludedInRandomizer": false
+        },
+        "657724": {
+          "RemoteId": "657724",
+          "Hero": "unknown",
+          "Folder": "files",
+          "IncludedInRandomizer": false
+        },
+        "655351": {
+          "RemoteId": "655351",
+          "Hero": "venator",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "644152": {
+          "RemoteId": "644152",
+          "Hero": "victor",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "663268": {
+          "RemoteId": "663268",
+          "Hero": "vindicta",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "668400": {
+          "RemoteId": "668400",
+          "Hero": "viscous",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "661244": {
+          "RemoteId": "661244",
+          "Hero": "vyper",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "666724": {
+          "RemoteId": "666724",
+          "Hero": "warden",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "659140": {
+          "RemoteId": "659140",
+          "Hero": "wraith",
+          "Folder": "vfx",
+          "IncludedInRandomizer": false
+        },
+        "628665": {
+          "RemoteId": "628665",
+          "Hero": "wraith",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        },
+        "569650": {
+          "RemoteId": "569650",
+          "Hero": "yamato",
+          "Folder": "",
+          "IncludedInRandomizer": true
+        }
+      }
+    }
+  },
+  "CustomFolders": [
+    "files",
+    "maps",
+    "sfx",
+    "soul container",
+    "troops",
+    "ui",
+    "vfx"
+  ],
+  "LastSessionLoadout": [
+    {
+      "Hero": "abrams",
+      "ModName": "[NEW LINES] HELLBOY \u003E ABRAMS",
+      "RemoteId": "664133",
+      "HeroDisplay": "Abrams"
+    },
+    {
+      "Hero": "apollo",
+      "ModName": "Alucard - Apollo",
+      "RemoteId": "657495",
+      "HeroDisplay": "Apollo"
+    },
+    {
+      "Hero": "bebop",
+      "ModName": "[Fixed!] Goobop Skin Mod",
+      "RemoteId": "624119",
+      "HeroDisplay": "Bebop"
+    },
+    {
+      "Hero": "billy",
+      "ModName": "[Fixed!] Ram Billy Skin",
+      "RemoteId": "628204",
+      "HeroDisplay": "Billy"
+    },
+    {
+      "Hero": "calico",
+      "ModName": "Irem (Eternal Return) - Calico",
+      "RemoteId": "660496",
+      "HeroDisplay": "Calico"
+    },
+    {
+      "Hero": "celeste",
+      "ModName": "Candy Cane - Celeste",
+      "RemoteId": "654699",
+      "HeroDisplay": "Celeste"
+    },
+    {
+      "Hero": "doorman",
+      "ModName": "[BROKEN] Chell Doorman [Portal 2]",
+      "RemoteId": "624215",
+      "HeroDisplay": "Doorman"
+    },
+    {
+      "Hero": "drifter",
+      "ModName": "Summer Drifter",
+      "RemoteId": "635164",
+      "HeroDisplay": "Drifter"
+    },
+    {
+      "Hero": "dynamo",
+      "ModName": "DJ Subatomic Supernova Dynamo",
+      "RemoteId": "666185",
+      "HeroDisplay": "Dynamo"
+    },
+    {
+      "Hero": "graves",
+      "ModName": "Toon Graves",
+      "RemoteId": "664952",
+      "HeroDisplay": "Graves"
+    },
+    {
+      "Hero": "grey talon",
+      "ModName": "Minecraft Skeleton Talon",
+      "RemoteId": "563116",
+      "HeroDisplay": "Grey Talon"
+    },
+    {
+      "Hero": "haze",
+      "ModName": "Lady Strix/Epi Haze Mod",
+      "RemoteId": "657572",
+      "HeroDisplay": "Haze"
+    },
+    {
+      "Hero": "holliday",
+      "ModName": "[Fixed!] Frog Holliday Deadlock Skin",
+      "RemoteId": "624372",
+      "HeroDisplay": "Holliday"
+    },
+    {
+      "Hero": "infernus",
+      "ModName": "Ace (One Piece) - Infernus",
+      "RemoteId": "626469",
+      "HeroDisplay": "Infernus"
+    },
+    {
+      "Hero": "ivy",
+      "ModName": "Toon Ivy (ULT FIX)",
+      "RemoteId": "628313",
+      "HeroDisplay": "Ivy"
+    },
+    {
+      "Hero": "kelvin",
+      "ModName": "Space Marine Kelvin",
+      "RemoteId": "655426",
+      "HeroDisplay": "Kelvin"
+    },
+    {
+      "Hero": "lady geist",
+      "ModName": "Joint Investigator Geist",
+      "RemoteId": "659418",
+      "HeroDisplay": "Lady Geist"
+    },
+    {
+      "Hero": "lash",
+      "ModName": "Summer Time lash Skin",
+      "RemoteId": "658719",
+      "HeroDisplay": "Lash"
+    },
+    {
+      "Hero": "mcginnis",
+      "ModName": "Guns Out McGinnis",
+      "RemoteId": "652878",
+      "HeroDisplay": "Mcginnis"
+    },
+    {
+      "Hero": "mina",
+      "ModName": "Toon Mina (UPDATED 02/17/26)",
+      "RemoteId": "630226",
+      "HeroDisplay": "Mina"
+    },
+    {
+      "Hero": "mirage",
+      "ModName": "Poignant Professor Mirage",
+      "RemoteId": "649493",
+      "HeroDisplay": "Mirage"
+    },
+    {
+      "Hero": "mo \u0026 krill",
+      "ModName": "[Fixed!] Mo and Krill dapper skin (DL nightshift)",
+      "RemoteId": "619335",
+      "HeroDisplay": "Mo \u0026 Krill"
+    },
+    {
+      "Hero": "paige",
+      "ModName": "Toon Paige",
+      "RemoteId": "663264",
+      "HeroDisplay": "Paige"
+    },
+    {
+      "Hero": "paradox",
+      "ModName": "Toon Paradox",
+      "RemoteId": "667315",
+      "HeroDisplay": "Paradox"
+    },
+    {
+      "Hero": "pocket",
+      "ModName": "Pocket \u2014 The Hidden Prince",
+      "RemoteId": "664612",
+      "HeroDisplay": "Pocket"
+    },
+    {
+      "Hero": "rem",
+      "ModName": "El Rem",
+      "RemoteId": "660144",
+      "HeroDisplay": "Rem"
+    },
+    {
+      "Hero": "seven",
+      "ModName": "Neon Seven",
+      "RemoteId": "663179",
+      "HeroDisplay": "Seven"
+    },
+    {
+      "Hero": "shiv",
+      "ModName": "Big Krillin: Shriv",
+      "RemoteId": "660501",
+      "HeroDisplay": "Shiv"
+    },
+    {
+      "Hero": "silver",
+      "ModName": "Girlfailure Silver",
+      "RemoteId": "663317",
+      "HeroDisplay": "Silver"
+    },
+    {
+      "Hero": "sinclair",
+      "ModName": "Mr. Puzzles SMG4 for Sinclair!",
+      "RemoteId": "667469",
+      "HeroDisplay": "Sinclair"
+    },
+    {
+      "Hero": "venator",
+      "ModName": "CT SAS Venator | With Sounds!",
+      "RemoteId": "655351",
+      "HeroDisplay": "Venator"
+    },
+    {
+      "Hero": "victor",
+      "ModName": "Springtrap Victor",
+      "RemoteId": "644152",
+      "HeroDisplay": "Victor"
+    },
+    {
+      "Hero": "vindicta",
+      "ModName": "Ghost Bride Vindicta",
+      "RemoteId": "663268",
+      "HeroDisplay": "Vindicta"
+    },
+    {
+      "Hero": "viscous",
+      "ModName": "Gummigoo Viscous",
+      "RemoteId": "668400",
+      "HeroDisplay": "Viscous"
+    },
+    {
+      "Hero": "vyper",
+      "ModName": "Slork Viper",
+      "RemoteId": "661244",
+      "HeroDisplay": "Vyper"
+    },
+    {
+      "Hero": "warden",
+      "ModName": "Warden Remodel mod",
+      "RemoteId": "666724",
+      "HeroDisplay": "Warden"
+    },
+    {
+      "Hero": "wraith",
+      "ModName": "Toon Wraith",
+      "RemoteId": "628665",
+      "HeroDisplay": "Wraith"
+    },
+    {
+      "Hero": "yamato",
+      "ModName": "2B | Yamato Skin",
+      "RemoteId": "569650",
+      "HeroDisplay": "Yamato"
+    }
+  ],
+  "Mods": {
+    "664133": {
+      "RemoteId": "664133",
+      "Hero": "abrams",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "657495": {
+      "RemoteId": "657495",
+      "Hero": "apollo",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "628204": {
+      "RemoteId": "628204",
+      "Hero": "billy",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "660496": {
+      "RemoteId": "660496",
+      "Hero": "calico",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "654699": {
+      "RemoteId": "654699",
+      "Hero": "celeste",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "624215": {
+      "RemoteId": "624215",
+      "Hero": "doorman",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "635164": {
+      "RemoteId": "635164",
+      "Hero": "drifter",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "666185": {
+      "RemoteId": "666185",
+      "Hero": "dynamo",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "659478": {
+      "RemoteId": "659478",
+      "Hero": "dynamo",
+      "Folder": "vfx",
+      "IncludedInRandomizer": false
+    },
+    "664952": {
+      "RemoteId": "664952",
+      "Hero": "graves",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "657572": {
+      "RemoteId": "657572",
+      "Hero": "haze",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "624372": {
+      "RemoteId": "624372",
+      "Hero": "holliday",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "87984": {
+      "RemoteId": "87984",
+      "Hero": "holliday",
+      "Folder": "sfx",
+      "IncludedInRandomizer": false
+    },
+    "669368": {
+      "RemoteId": "669368",
+      "Hero": "holliday",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "626469": {
+      "RemoteId": "626469",
+      "Hero": "infernus",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "628313": {
+      "RemoteId": "628313",
+      "Hero": "ivy",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "655426": {
+      "RemoteId": "655426",
+      "Hero": "kelvin",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "658719": {
+      "RemoteId": "658719",
+      "Hero": "lash",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "652878": {
+      "RemoteId": "652878",
+      "Hero": "mcginnis",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "630226": {
+      "RemoteId": "630226",
+      "Hero": "mina",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "649493": {
+      "RemoteId": "649493",
+      "Hero": "mirage",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "619335": {
+      "RemoteId": "619335",
+      "Hero": "mo \u0026 krill",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "663264": {
+      "RemoteId": "663264",
+      "Hero": "paige",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "667315": {
+      "RemoteId": "667315",
+      "Hero": "paradox",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "664612": {
+      "RemoteId": "664612",
+      "Hero": "pocket",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "660144": {
+      "RemoteId": "660144",
+      "Hero": "rem",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "663179": {
+      "RemoteId": "663179",
+      "Hero": "seven",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "663317": {
+      "RemoteId": "663317",
+      "Hero": "silver",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "667469": {
+      "RemoteId": "667469",
+      "Hero": "sinclair",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "590190": {
+      "RemoteId": "590190",
+      "Hero": "sinclair",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "624119": {
+      "RemoteId": "624119",
+      "Hero": "bebop",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "640378": {
+      "RemoteId": "640378",
+      "Hero": "unknown",
+      "Folder": "maps",
+      "IncludedInRandomizer": false
+    },
+    "636058": {
+      "RemoteId": "636058",
+      "Hero": "unknown",
+      "Folder": "maps",
+      "IncludedInRandomizer": false
+    },
+    "601444": {
+      "RemoteId": "601444",
+      "Hero": "unknown",
+      "Folder": "ui",
+      "IncludedInRandomizer": false
+    },
+    "659901": {
+      "RemoteId": "659901",
+      "Hero": "unknown",
+      "Folder": "ui",
+      "IncludedInRandomizer": false
+    },
+    "639154": {
+      "RemoteId": "639154",
+      "Hero": "unknown",
+      "Folder": "troops",
+      "IncludedInRandomizer": false
+    },
+    "86302": {
+      "RemoteId": "86302",
+      "Hero": "unknown",
+      "Folder": "sfx",
+      "IncludedInRandomizer": false
+    },
+    "662337": {
+      "RemoteId": "662337",
+      "Hero": "unknown",
+      "Folder": "ui",
+      "IncludedInRandomizer": false
+    },
+    "660501": {
+      "RemoteId": "660501",
+      "Hero": "shiv",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "659246": {
+      "RemoteId": "659246",
+      "Hero": "unknown",
+      "Folder": "soul container",
+      "IncludedInRandomizer": false
+    },
+    "655927": {
+      "RemoteId": "655927",
+      "Hero": "unknown",
+      "Folder": "ui",
+      "IncludedInRandomizer": false
+    },
+    "87616": {
+      "RemoteId": "87616",
+      "Hero": "unknown",
+      "Folder": "sfx",
+      "IncludedInRandomizer": false
+    },
+    "650427": {
+      "RemoteId": "650427",
+      "Hero": "unknown",
+      "Folder": "ui",
+      "IncludedInRandomizer": false
+    },
+    "83604": {
+      "RemoteId": "83604",
+      "Hero": "unknown",
+      "Folder": "sfx",
+      "IncludedInRandomizer": false
+    },
+    "659914": {
+      "RemoteId": "659914",
+      "Hero": "unknown",
+      "Folder": "sfx",
+      "IncludedInRandomizer": false
+    },
+    "87174": {
+      "RemoteId": "87174",
+      "Hero": "unknown",
+      "Folder": "sfx",
+      "IncludedInRandomizer": false
+    },
+    "659418": {
+      "RemoteId": "659418",
+      "Hero": "lady geist",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "658931": {
+      "RemoteId": "658931",
+      "Hero": "unknown",
+      "Folder": "maps",
+      "IncludedInRandomizer": false
+    },
+    "82099": {
+      "RemoteId": "82099",
+      "Hero": "unknown",
+      "Folder": "sfx",
+      "IncludedInRandomizer": false
+    },
+    "634638": {
+      "RemoteId": "634638",
+      "Hero": "unknown",
+      "Folder": "maps",
+      "IncludedInRandomizer": false
+    },
+    "563116": {
+      "RemoteId": "563116",
+      "Hero": "grey talon",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "637275": {
+      "RemoteId": "637275",
+      "Hero": "unknown",
+      "Folder": "ui",
+      "IncludedInRandomizer": false
+    },
+    "623518": {
+      "RemoteId": "623518",
+      "Hero": "unknown",
+      "Folder": "ui",
+      "IncludedInRandomizer": false
+    },
+    "657724": {
+      "RemoteId": "657724",
+      "Hero": "unknown",
+      "Folder": "files",
+      "IncludedInRandomizer": false
+    },
+    "655351": {
+      "RemoteId": "655351",
+      "Hero": "venator",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "644152": {
+      "RemoteId": "644152",
+      "Hero": "victor",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "663268": {
+      "RemoteId": "663268",
+      "Hero": "vindicta",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "668400": {
+      "RemoteId": "668400",
+      "Hero": "viscous",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "661244": {
+      "RemoteId": "661244",
+      "Hero": "vyper",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "666724": {
+      "RemoteId": "666724",
+      "Hero": "warden",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "659140": {
+      "RemoteId": "659140",
+      "Hero": "wraith",
+      "Folder": "vfx",
+      "IncludedInRandomizer": false
+    },
+    "628665": {
+      "RemoteId": "628665",
+      "Hero": "wraith",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    },
+    "569650": {
+      "RemoteId": "569650",
+      "Hero": "yamato",
+      "Folder": "",
+      "IncludedInRandomizer": true
+    }
+  }
+}

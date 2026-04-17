@@ -32,6 +32,8 @@ namespace DL_Skin_Randomiser
         private string _expandedSectionKey = "";
         private string _folderOptionsSignature = "";
         private string _characterOptionsSignature = "";
+        private string _groupOptionsSignature = "";
+        private string _presetOptionsSignature = "";
         private UserPreferences _preferences = new();
         private readonly System.Windows.Threading.DispatcherTimer _noticeTimer = new();
         private bool _isBindingGroups;
@@ -41,7 +43,10 @@ namespace DL_Skin_Randomiser
 
         public List<CharacterOption> CharacterOptions { get; private set; } = [];
         public List<CharacterOption> FolderOptions { get; private set; } = [];
+        public List<CharacterOption> GroupOptions { get; private set; } = [];
         public List<CharacterOption> ProfileOptions { get; private set; } = [];
+        public List<CharacterOption> BackupOptions { get; private set; } = [];
+        public List<CharacterOption> PresetOptions { get; private set; } = [];
 
         private enum NoticeKind
         {
@@ -63,6 +68,7 @@ namespace DL_Skin_Randomiser
         {
             _isLoading = true;
             _preferences = UserPreferenceService.Load(_preferencesPath);
+            RefreshBackupOptions();
             _statePath = EnsureStatePath(_preferences);
 
             if (string.IsNullOrWhiteSpace(_statePath))
@@ -97,8 +103,11 @@ namespace DL_Skin_Randomiser
             _expandedSectionKey = profilePreferences.ExpandedSections?.FirstOrDefault() ?? "";
             RefreshCharacterOptions();
             RefreshFolderOptions();
+            RefreshGroupOptions();
             RefreshProfileOptions();
+            RefreshBackupOptions();
             RefreshLoadoutSummary();
+            RefreshPresetOptions();
             ApplyNonRandomizerExclusions();
             BindGroups();
 
@@ -109,7 +118,13 @@ namespace DL_Skin_Randomiser
 
         private void RandomiseButton_Click(object sender, RoutedEventArgs e)
         {
-            RandomiseCurrentLoadout();
+            var matchedExistingPreset = RandomiseCurrentLoadout();
+            if (matchedExistingPreset)
+            {
+                SetNotice("Preset matched", "This reroll matched a recent preset, so its timestamp was updated and moved to the top.", NoticeKind.Info, showBanner: true);
+                return;
+            }
+
             SetNotice("Reroll ready", $"Rerolled {_currentLoadout.Count} hero picks. Apply or launch when you are happy with them.", NoticeKind.Success, showBanner: true);
         }
 
@@ -170,6 +185,51 @@ namespace DL_Skin_Randomiser
             LoadMods();
         }
 
+        private void BackupPreferencesButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                AutoSavePreferences(showStatus: false);
+                var backupPath = UserPreferenceService.Backup(_preferencesPath);
+                RefreshBackupOptions();
+                BackupBox.SelectedValue = backupPath;
+                SetNotice("Backup created", $"Saved app setup backup: {backupPath}", NoticeKind.Success, showBanner: true);
+            }
+            catch (Exception ex)
+            {
+                SetNotice("Backup failed", $"Could not back up app setup: {ex.Message}", NoticeKind.Error, showBanner: true);
+            }
+        }
+
+        private void RestoreBackupButton_Click(object sender, RoutedEventArgs e)
+        {
+            var backupPath = BackupBox.SelectedValue as string ?? "";
+            if (string.IsNullOrWhiteSpace(backupPath))
+            {
+                SetNotice("Choose a backup", "Choose a setup backup to restore.", NoticeKind.Warning, showBanner: true);
+                return;
+            }
+
+            try
+            {
+                var beforeRestoreBackup = UserPreferenceService.RestoreBackup(_preferencesPath, backupPath);
+                _preferences = UserPreferenceService.Load(_preferencesPath);
+                RefreshBackupOptions();
+                LoadMods();
+                SetNotice(
+                    "Backup restored",
+                    string.IsNullOrWhiteSpace(beforeRestoreBackup)
+                        ? "Restored app setup backup."
+                        : $"Restored app setup backup. Previous setup was backed up first: {beforeRestoreBackup}",
+                    NoticeKind.Success,
+                    showBanner: true);
+            }
+            catch (Exception ex)
+            {
+                SetNotice("Restore failed", $"Could not restore backup: {ex.Message}", NoticeKind.Error, showBanner: true);
+            }
+        }
+
         private void AddFolderButton_Click(object sender, RoutedEventArgs e)
         {
             var folderName = NewFolderTextBox.Text.Trim();
@@ -180,6 +240,7 @@ namespace DL_Skin_Randomiser
             _preferences = UserPreferenceService.Load(_preferencesPath);
             NewFolderTextBox.Text = "";
             RefreshFolderOptions();
+            RefreshGroupOptions();
             BindGroups();
             AutoSavePreferences(showStatus: false);
             SetNotice("Folder added", $"Added folder {folderName.Trim()}.", NoticeKind.Success);
@@ -187,7 +248,7 @@ namespace DL_Skin_Randomiser
 
         private void RemoveFolderButton_Click(object sender, RoutedEventArgs e)
         {
-            var folder = RemoveFolderBox.SelectedValue as string ?? "";
+            var folder = EditFolderBox.SelectedValue as string ?? "";
             if (string.IsNullOrWhiteSpace(folder))
             {
                 SetNotice("Choose a folder", "Choose a folder to remove.", NoticeKind.Warning, showBanner: true);
@@ -203,8 +264,10 @@ namespace DL_Skin_Randomiser
             UserPreferenceService.RemoveCustomFolder(_preferencesPath, _selectedProfileId, folder);
             _preferences = UserPreferenceService.Load(_preferencesPath);
             FolderFilterBox.Text = AllFoldersFilter;
-            RemoveFolderBox.SelectedValue = null;
+            EditFolderBox.SelectedValue = null;
+            EditFolderNameTextBox.Text = "";
             RefreshFolderOptions();
+            RefreshGroupOptions();
             BindGroups();
             AutoSavePreferences(showStatus: false);
             SetNotice("Folder removed", $"Removed folder {GetFolderDisplayName(folder)}.", NoticeKind.Success, showBanner: true);
@@ -249,6 +312,7 @@ namespace DL_Skin_Randomiser
 
             _preferences = UserPreferenceService.Load(_preferencesPath);
             RefreshFolderOptions();
+            RefreshGroupOptions();
             EditFolderBox.SelectedValue = HeroDisplayService.ToKey(newFolderName);
             FolderFilterBox.Text = string.Equals(NormalizeFolder(FolderFilterBox.Text), oldFolder, StringComparison.OrdinalIgnoreCase)
                 ? HeroDisplayService.ToFolderDisplayName(newFolderName)
@@ -372,7 +436,7 @@ namespace DL_Skin_Randomiser
             }, System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
-        private void RandomiseCurrentLoadout()
+        private bool RandomiseCurrentLoadout()
         {
             _mods = ModSelectionService.RandomlySelectOnePerHero(_mods)
                 .OrderBy(mod => mod.Hero)
@@ -380,11 +444,13 @@ namespace DL_Skin_Randomiser
                 .ToList();
 
             _currentLoadout = BuildCurrentLoadout();
-            UserPreferenceService.SaveLastSessionLoadout(_preferencesPath, _selectedProfileId, _currentLoadout);
+            var matchedExistingPreset = UserPreferenceService.SaveLastSessionLoadout(_preferencesPath, _selectedProfileId, _currentLoadout);
             _preferences = UserPreferenceService.Load(_preferencesPath);
             RefreshLoadoutSummary();
+            RefreshPresetOptions();
             BindGroups();
             AutoSavePreferences(showStatus: false);
+            return matchedExistingPreset;
         }
 
         private List<LoadoutPick> BuildCurrentLoadout()
@@ -408,6 +474,111 @@ namespace DL_Skin_Randomiser
         private void RefreshLoadoutSummary()
         {
             LoadoutSummaryList.ItemsSource = _currentLoadout;
+        }
+
+        private void RefreshPresetOptions()
+        {
+            var profilePreferences = GetCurrentProfilePreferences();
+            var presets = profilePreferences.SavedPresets
+                .Select(preset => new CharacterOption
+                {
+                    Key = preset.Id,
+                    Name = $"Saved: {preset.Name} - {preset.PickCountText}"
+                })
+                .Concat(profilePreferences.RecentSessionPresets.Select(preset => new CharacterOption
+                {
+                    Key = preset.Id,
+                    Name = $"Recent: {preset.CreatedAt:dd MMM HH:mm:ss} - {preset.PickCountText}"
+                }))
+                .ToList();
+
+            var signature = BuildOptionSignature(presets);
+            if (string.Equals(signature, _presetOptionsSignature, StringComparison.Ordinal))
+                return;
+
+            var selectedPreset = PresetBox.SelectedValue as string;
+            _presetOptionsSignature = signature;
+            PresetOptions = presets;
+            PresetBox.ItemsSource = PresetOptions;
+            PresetBox.SelectedValue = PresetOptions.Any(option => string.Equals(option.Key, selectedPreset, StringComparison.OrdinalIgnoreCase))
+                ? selectedPreset
+                : PresetOptions.FirstOrDefault()?.Key;
+        }
+
+        private void SavePresetButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentLoadout.Count == 0)
+            {
+                SetNotice("No preset to save", "Reroll or apply a loadout before saving it as a preset.", NoticeKind.Warning, showBanner: true);
+                return;
+            }
+
+            var name = PresetNameTextBox.Text.Trim();
+            UserPreferenceService.SavePreset(_preferencesPath, _selectedProfileId, name, _currentLoadout);
+            _preferences = UserPreferenceService.Load(_preferencesPath);
+            PresetNameTextBox.Text = "";
+            RefreshPresetOptions();
+            SetNotice("Preset saved", $"Saved {(_currentLoadout.Count == 1 ? "1 pick" : $"{_currentLoadout.Count} picks")} as a preset.", NoticeKind.Success, showBanner: true);
+        }
+
+        private void LoadPresetButton_Click(object sender, RoutedEventArgs e)
+        {
+            var presetId = PresetBox.SelectedValue as string ?? "";
+            var preset = FindPreset(presetId);
+            if (preset is null)
+            {
+                SetNotice("Choose a preset", "Choose a preset to load.", NoticeKind.Warning, showBanner: true);
+                return;
+            }
+
+            ApplyPreset(preset);
+            _currentLoadout = BuildCurrentLoadout();
+            UserPreferenceService.SaveLastSessionLoadout(_preferencesPath, _selectedProfileId, _currentLoadout);
+            _preferences = UserPreferenceService.Load(_preferencesPath);
+            RefreshLoadoutSummary();
+            RefreshPresetOptions();
+            BindGroups();
+            AutoSavePreferences(showStatus: false);
+            SetNotice("Preset loaded", $"Loaded {preset.Name}. Apply when you are ready.", NoticeKind.Success, showBanner: true);
+        }
+
+        private LoadoutPreset? FindPreset(string presetId)
+        {
+            var profilePreferences = GetCurrentProfilePreferences();
+            return profilePreferences.SavedPresets
+                .Concat(profilePreferences.RecentSessionPresets)
+                .FirstOrDefault(preset => string.Equals(preset.Id, presetId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void ApplyPreset(LoadoutPreset preset)
+        {
+            var selectedRemoteIds = preset.Picks
+                .Select(pick => pick.RemoteId)
+                .Where(remoteId => !string.IsNullOrWhiteSpace(remoteId))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var heroes = preset.Picks
+                .Select(pick => NormalizeHero(pick.Hero))
+                .Where(hero => !string.IsNullOrWhiteSpace(hero) && hero != "unknown")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var mod in _mods)
+            {
+                if (selectedRemoteIds.Contains(mod.RemoteId))
+                {
+                    mod.Enabled = true;
+                    mod.Folder = "";
+                    mod.IncludedInRandomizer = true;
+                    continue;
+                }
+
+                if (heroes.Contains(NormalizeHero(mod.Hero))
+                    && mod.IncludedInRandomizer
+                    && string.IsNullOrWhiteSpace(mod.Folder))
+                {
+                    mod.Enabled = false;
+                }
+            }
         }
 
         private void RefreshFolderOptions()
@@ -447,17 +618,37 @@ namespace DL_Skin_Randomiser
             else
                 FolderFilterBox.Text = selectedFilter;
 
-            var selectedRemoveFolder = RemoveFolderBox.SelectedValue as string;
             var selectedEditFolder = EditFolderBox.SelectedValue as string;
-            RemoveFolderBox.ItemsSource = FolderOptions
-                .Where(option => !string.IsNullOrWhiteSpace(option.Key))
-                .ToList();
-            RemoveFolderBox.SelectedValue = selectedRemoveFolder;
-
             EditFolderBox.ItemsSource = FolderOptions
                 .Where(option => !string.IsNullOrWhiteSpace(option.Key))
                 .ToList();
             EditFolderBox.SelectedValue = selectedEditFolder;
+        }
+
+        private void RefreshGroupOptions()
+        {
+            List<CharacterOption> nextGroupOptions =
+            [
+                ..CharacterOptions.Select(option => new CharacterOption
+                {
+                    Key = $"hero:{option.Key}",
+                    Name = option.Name
+                }),
+                ..FolderOptions
+                    .Where(option => !string.IsNullOrWhiteSpace(option.Key))
+                    .Select(option => new CharacterOption
+                    {
+                        Key = $"folder:{option.Key}",
+                        Name = $"Folder: {option.Name}"
+                    })
+            ];
+
+            var signature = BuildOptionSignature(nextGroupOptions);
+            if (string.Equals(signature, _groupOptionsSignature, StringComparison.Ordinal))
+                return;
+
+            _groupOptionsSignature = signature;
+            GroupOptions = nextGroupOptions;
         }
 
         private void RefreshCharacterOptions()
@@ -502,6 +693,16 @@ namespace DL_Skin_Randomiser
                 ProfileBox.SelectedValue = ProfileOptions[0].Key;
                 _selectedProfileId = ProfileOptions[0].Key;
             }
+        }
+
+        private void RefreshBackupOptions()
+        {
+            var selectedBackup = BackupBox.SelectedValue as string;
+            BackupOptions = UserPreferenceService.ListBackups();
+            BackupBox.ItemsSource = BackupOptions;
+            BackupBox.SelectedValue = BackupOptions.Any(option => string.Equals(option.Key, selectedBackup, StringComparison.OrdinalIgnoreCase))
+                ? selectedBackup
+                : BackupOptions.FirstOrDefault()?.Key;
         }
 
         private void CharacterFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -591,7 +792,7 @@ namespace DL_Skin_Randomiser
             LoadMods();
         }
 
-        private void FolderSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void GroupSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
@@ -602,54 +803,9 @@ namespace DL_Skin_Randomiser
                 if (sender is ComboBox { DataContext: DlmmMod mod })
                 {
                     changedMod = mod;
-                    if (!string.IsNullOrWhiteSpace(mod.Folder))
-                    {
-                        mod.Hero = "unknown";
-                        mod.IncludedInRandomizer = false;
-                    }
                 }
 
                 ApplyNonRandomizerExclusions(changedMod);
-                BindGroups();
-                AutoSavePreferences(mod: changedMod);
-            });
-        }
-
-        private void FolderSelector_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
-        {
-            if (!IsLoaded || _isBindingGroups || _isLoading)
-                return;
-
-            ApplyNonRandomizerExclusions();
-            BindGroups();
-            AutoSavePreferences();
-        }
-
-        private void CharacterSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!IsLoaded || _isBindingGroups || _isLoading)
-                return;
-
-            Dispatcher.BeginInvoke(() =>
-            {
-                DlmmMod? changedMod = null;
-                if (sender is ComboBox { DataContext: DlmmMod mod })
-                {
-                    changedMod = mod;
-                    var hero = NormalizeHero(mod.Hero);
-                    if (!string.IsNullOrWhiteSpace(hero) && !string.Equals(hero, "unknown", StringComparison.OrdinalIgnoreCase))
-                    {
-                        mod.Hero = hero;
-                        mod.Folder = "";
-                        mod.IncludedInRandomizer = true;
-                    }
-                    else
-                    {
-                        mod.Hero = "unknown";
-                        mod.IncludedInRandomizer = false;
-                    }
-                }
-
                 BindGroups();
                 AutoSavePreferences(mod: changedMod);
             });

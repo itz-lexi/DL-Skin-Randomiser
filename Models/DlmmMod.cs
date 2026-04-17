@@ -31,6 +31,7 @@ namespace DL_Skin_Randomiser.Models
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HeroDisplay));
                 OnPropertyChanged(nameof(ShowFolderSelector));
+                OnPropertyChanged(nameof(AssignmentKey));
             }
         }
         public string Folder
@@ -46,6 +47,7 @@ namespace DL_Skin_Randomiser.Models
                 OnPropertyChanged(nameof(FolderDisplay));
                 OnPropertyChanged(nameof(ShowCharacterSelector));
                 OnPropertyChanged(nameof(ShowFolderSelector));
+                OnPropertyChanged(nameof(AssignmentKey));
             }
         }
         public string FolderDisplay
@@ -71,6 +73,39 @@ namespace DL_Skin_Randomiser.Models
             !string.IsNullOrWhiteSpace(Folder)
             || string.IsNullOrWhiteSpace(Hero)
             || string.Equals(Hero, "unknown", StringComparison.OrdinalIgnoreCase);
+        public string AssignmentKey
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(Folder))
+                    return $"folder:{Services.HeroDisplayService.ToKey(Folder)}";
+
+                return $"hero:{Services.HeroDisplayService.ToKey(Hero)}";
+            }
+            set
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    return;
+
+                const string heroPrefix = "hero:";
+                const string folderPrefix = "folder:";
+
+                if (value.StartsWith(folderPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    Folder = Services.HeroDisplayService.ToKey(value[folderPrefix.Length..]);
+                    Hero = "unknown";
+                    IncludedInRandomizer = false;
+                    return;
+                }
+
+                if (value.StartsWith(heroPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    Hero = Services.HeroDisplayService.ToKey(value[heroPrefix.Length..]);
+                    Folder = "";
+                    IncludedInRandomizer = !string.Equals(Hero, "unknown", StringComparison.OrdinalIgnoreCase);
+                }
+            }
+        }
         public bool IncludedInRandomizer
         {
             get => _includedInRandomizer;
