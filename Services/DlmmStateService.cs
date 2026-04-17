@@ -26,6 +26,7 @@ namespace DL_Skin_Randomiser.Services
             var profileId = ResolveProfileId(activeProfileId, selectedProfileId, profiles);
             var enabledMods = GetEnabledMods(stateElement, profileId);
             var profileModElements = GetProfileModElements(stateElement, profileId);
+            var localModsByRemoteId = GetLocalModElementsByRemoteId(stateElement);
 
             var result = new DlmmStateSnapshot
             {
@@ -37,7 +38,7 @@ namespace DL_Skin_Randomiser.Services
             };
 
             var modElements = profileModElements.Count > 0
-                ? profileModElements
+                ? GetFreshProfileModElements(profileModElements, localModsByRemoteId)
                 : GetModElements(stateElement);
             if (modElements.Count == 0)
                 return result;
@@ -48,6 +49,7 @@ namespace DL_Skin_Randomiser.Services
             {
                 var remoteId = TryGetString(modElement, "remoteId");
                 var name = TryGetString(modElement, "name");
+                var isEnabledInProfile = IsEnabled(enabledMods, remoteId);
 
                 result.Mods.Add(new DlmmMod
                 {
@@ -60,7 +62,8 @@ namespace DL_Skin_Randomiser.Services
                     InstalledVpks = GetStringArray(modElement, "installedVpks"),
                     Hero = DetectHero(modElement, name),
                     IsInSelectedProfile = hasProfileModList || IsInProfile(enabledMods, remoteId),
-                    Enabled = IsEnabled(enabledMods, remoteId)
+                    IsEnabledInDlmmProfile = isEnabledInProfile,
+                    Enabled = isEnabledInProfile
                 });
             }
 
@@ -95,6 +98,48 @@ namespace DL_Skin_Randomiser.Services
                     .ToList(),
                 _ => []
             };
+        }
+
+        private static List<JsonElement> GetFreshProfileModElements(
+            List<JsonElement> profileModElements,
+            IReadOnlyDictionary<string, JsonElement> localModsByRemoteId)
+        {
+            var result = new List<JsonElement>();
+            var seenRemoteIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var profileModElement in profileModElements)
+            {
+                var remoteId = TryGetString(profileModElement, "remoteId");
+                if (!string.IsNullOrWhiteSpace(remoteId) && !seenRemoteIds.Add(remoteId))
+                    continue;
+
+                result.Add(!string.IsNullOrWhiteSpace(remoteId)
+                    && localModsByRemoteId.TryGetValue(remoteId, out var localModElement)
+                        ? localModElement
+                        : profileModElement);
+            }
+
+            return result;
+        }
+
+        private static Dictionary<string, JsonElement> GetLocalModElementsByRemoteId(JsonElement stateElement)
+        {
+            var result = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+            var localMods = TryGetProperty(stateElement, "localMods");
+            if (localMods is not { ValueKind: JsonValueKind.Array })
+                return result;
+
+            foreach (var modElement in localMods.Value.EnumerateArray().Where(IsLikelyModElement))
+            {
+                var remoteId = TryGetString(modElement, "remoteId");
+                if (string.IsNullOrWhiteSpace(remoteId))
+                    continue;
+
+                if (!result.ContainsKey(remoteId) || IsInstalledMod(modElement))
+                    result[remoteId] = modElement;
+            }
+
+            return result;
         }
 
         private static List<JsonElement> GetModElements(JsonElement stateElement)

@@ -958,6 +958,12 @@
             </StackPanel>
         </Border>
 
+        <ScrollViewer x:Name="MainScrollViewer"
+                      DockPanel.Dock="Top"
+                      VerticalScrollBarVisibility="Auto"
+                      PreviewMouseWheel="MainScrollViewer_PreviewMouseWheel">
+            <StackPanel>
+
         <Border x:Name="NoticeBanner"
                 DockPanel.Dock="Top"
                 Background="#203125"
@@ -998,6 +1004,80 @@
                              Margin="0,9,4,0" />
             </Grid>
         </Border>
+
+        <Expander DockPanel.Dock="Top"
+                  IsExpanded="False"
+                  Margin="0,0,0,12">
+            <Expander.Header>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Addons diagnostics"
+                               Foreground="#F4F4F4"
+                               FontSize="16"
+                               FontWeight="SemiBold" />
+                    <TextBlock x:Name="AddonsDiagnosticsSummaryText"
+                               Foreground="#AEB7BA"
+                               Margin="10,2,0,0" />
+                </StackPanel>
+            </Expander.Header>
+            <Border Background="#1B1B1B"
+                    BorderBrush="#303030"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Margin="0,8,0,0"
+                    Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Read-only scan of live addon VPKs. Strong matches come from DLMM apply logs; slot-name-only matches are marked as weak guesses. Stale enabledMods entries are summarized instead of listed as active."
+                               Foreground="#AEB7BA"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,10" />
+                    <ItemsControl x:Name="AddonsDiagnosticsList">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="330"
+                                        MinHeight="122"
+                                        Background="#242424"
+                                        BorderBrush="{Binding StatusBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="10"
+                                        Margin="0,0,10,10">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Status}"
+                                                   Foreground="{Binding StatusBrush}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding ModName}"
+                                                   Foreground="#F2F2F2"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,4,0,0" />
+                                        <TextBlock Text="{Binding LiveSlot, StringFormat=Live: {0}}"
+                                                   Foreground="#DDE4E6"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,4,0,0" />
+                                        <TextBlock Text="{Binding Evidence, StringFormat=Evidence: {0}}"
+                                                   Foreground="#AEB7BA"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,3,0,0" />
+                                        <TextBlock Text="{Binding Detail}"
+                                                   Foreground="#8F989B"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,4,0,0" />
+                                        <TextBlock Text="{Binding RemoteId, StringFormat=Remote ID: {0}}"
+                                                   Foreground="#6F787B"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Expander>
 
         <Expander DockPanel.Dock="Top"
                   IsExpanded="False"
@@ -1074,9 +1154,6 @@
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="14">
-            <ScrollViewer x:Name="MainScrollViewer"
-                          VerticalScrollBarVisibility="Auto"
-                          PreviewMouseWheel="MainScrollViewer_PreviewMouseWheel">
                 <ItemsControl x:Name="HeroGroupsList">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -1210,8 +1287,9 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
                 </ItemsControl>
-            </ScrollViewer>
         </Border>
+            </StackPanel>
+        </ScrollViewer>
     </DockPanel>
     <Grid HorizontalAlignment="Right"
           VerticalAlignment="Bottom"

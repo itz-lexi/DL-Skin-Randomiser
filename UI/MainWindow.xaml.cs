@@ -37,6 +37,7 @@ namespace DL_Skin_Randomiser
         private UserPreferences _preferences = new();
         private readonly System.Windows.Threading.DispatcherTimer _noticeTimer = new();
         private UpdateCheckResult? _latestUpdate;
+        private AddonsReconciliationResult _addonsState = new();
         private bool _isBindingGroups;
         private bool _isLoading;
         private DateTime _noticeExpiresAt;
@@ -102,6 +103,7 @@ namespace DL_Skin_Randomiser
                 .ThenBy(mod => mod.Name)
                 .ToList();
 
+            _addonsState = AddonsInventoryService.ApplyPhysicalState(_gamePath, _mods);
             UserPreferenceService.Apply(_mods, _preferences, _selectedProfileId);
             var profilePreferences = GetCurrentProfilePreferences();
             _currentLoadout = profilePreferences.LastSessionLoadout;
@@ -113,10 +115,14 @@ namespace DL_Skin_Randomiser
             RefreshBackupOptions();
             RefreshLoadoutSummary();
             RefreshPresetOptions();
+            RefreshAddonsDiagnostics();
             ApplyNonRandomizerExclusions();
             BindGroups();
 
-            SetNotice("Profile loaded", $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. In use: {_mods.Count(mod => mod.Enabled)}", NoticeKind.Success);
+            SetNotice(
+                "Profile loaded",
+                BuildLoadedStatus(_addonsState),
+                NoticeKind.Success);
             StatePathText.Text = _statePath;
             _isLoading = false;
         }
@@ -164,6 +170,16 @@ namespace DL_Skin_Randomiser
 
                 UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
                 var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
+                if (result.RequiresDlmmApply)
+                {
+                    SetNotice(
+                        "DLMM apply needed",
+                        $"Randomised {_currentLoadout.Count} picks and updated {GetSelectedProfileName()}. Apply/rebuild in DLMM before launching Deadlock.",
+                        NoticeKind.Warning,
+                        showBanner: true);
+                    return;
+                }
+
                 GameLaunchService.Launch(_gamePath);
                 SetNotice("Deadlock launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock. Use Reroll before launch when you want a different set.", NoticeKind.Success, showBanner: true);
             }
@@ -581,6 +597,13 @@ namespace DL_Skin_Randomiser
             PresetBox.SelectedValue = PresetOptions.Any(option => string.Equals(option.Key, selectedPreset, StringComparison.OrdinalIgnoreCase))
                 ? selectedPreset
                 : PresetOptions.FirstOrDefault()?.Key;
+        }
+
+        private void RefreshAddonsDiagnostics()
+        {
+            AddonsDiagnosticsList.ItemsSource = _addonsState.Diagnostics;
+            AddonsDiagnosticsSummaryText.Text =
+                $"{_addonsState.LiveSlotCount} live VPKs • {_addonsState.LogMatchedModCount} log matched • {_addonsState.HashMatchedModCount} hash matched • {_addonsState.ConfirmedModCount + _addonsState.ProfileDisambiguatedModCount} likely active • {_addonsState.SlotOnlyGuessCount} weak guesses • {_addonsState.UnmatchedLiveSlotCount} unmatched • {_addonsState.StateOnlyModCount} stale state";
         }
 
         private void SavePresetButton_Click(object sender, RoutedEventArgs e)
@@ -1089,19 +1112,55 @@ namespace DL_Skin_Randomiser
 
         private string BuildApplyStatus(ApplyResult result)
         {
-            var status = $"Game files updated for {GetSelectedProfileName()}. In use: {result.EnabledCount}. Staged +{result.StagedEnabledCount}/-{result.StagedDisabledCount}.";
+            var status = result.GameFilesStaged
+                ? $"Game files updated for {GetSelectedProfileName()}. In use: {result.EnabledCount}. Staged +{result.StagedEnabledCount}/-{result.StagedDisabledCount}."
+                : $"DLMM state updated for {GetSelectedProfileName()}. In use: {result.EnabledCount}. Open DLMM and apply/rebuild before launching the game.";
+
             if (result.ForcedDisabledCount > 0)
                 status += $" Disabled {result.ForcedDisabledCount} duplicate hero picks.";
-            if (result.StagingSkippedCount > 0)
+            if (result.GameFilesStaged && result.StagingSkippedCount > 0)
                 status += $" {result.StagingSkippedCount} mods had no game files to stage.";
-            if (!string.IsNullOrWhiteSpace(result.AddonsBackupPath))
+            if (result.GameFilesStaged && !string.IsNullOrWhiteSpace(result.AddonsBackupPath))
                 status += " Backup created.";
 
-            status += " DLMM state was written too.";
+            if (result.RequiresDlmmApply)
+                status += " Direct VPK staging is disabled to avoid corrupting shared slots.";
 
             return IsDlmmRunning()
-                ? $"{status} DLMM is open, so its window may still show the old selection until restart."
+                ? $"{status} DLMM is open, so use DLMM's apply/rebuild step now."
                 : status;
+        }
+
+        private string BuildLoadedStatus(AddonsReconciliationResult addonsState)
+        {
+            var inUseCount = _mods.Count(mod => mod.Enabled);
+            if (addonsState.LiveSlotCount == 0)
+                return $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. In use from DLMM state: {inUseCount}.";
+
+            var status = $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. In use from game files: {inUseCount}/{addonsState.LiveSlotCount} live VPKs.";
+
+            if (addonsState.LogMatchedModCount > 0)
+                status += $" {addonsState.LogMatchedModCount} were matched from DLMM's apply log.";
+
+            if (addonsState.HashMatchedModCount > 0)
+                status += $" {addonsState.HashMatchedModCount} were matched by exact VPK hash.";
+
+            if (addonsState.ProfileDisambiguatedModCount > 0)
+                status += $" {addonsState.ProfileDisambiguatedModCount} shared slots were matched using DLMM profile state.";
+
+            if (addonsState.SlotOnlyGuessCount > 0)
+                status += $" {addonsState.SlotOnlyGuessCount} live slots only had weak slot-name guesses.";
+
+            if (addonsState.AmbiguousLiveSlotCount > 0)
+                status += $" {addonsState.AmbiguousLiveSlotCount} live slots are ambiguous.";
+
+            if (addonsState.UnmatchedLiveSlotCount > 0)
+                status += $" {addonsState.UnmatchedLiveSlotCount} live slots did not match a loaded mod.";
+
+            if (addonsState.StateOnlyModCount > 0)
+                status += $" {addonsState.StateOnlyModCount} enabledMods entries look stale.";
+
+            return status;
         }
 
         private static bool IsDlmmRunning()

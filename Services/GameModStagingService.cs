@@ -7,6 +7,24 @@ namespace DL_Skin_Randomiser.Services
     {
         public static ApplyResult Stage(string gamePath, IReadOnlyCollection<DlmmMod> mods)
         {
+            return new ApplyResult
+            {
+                StagingSkippedCount = mods.Count,
+                GameFilesStaged = false,
+                RequiresDlmmApply = true
+            };
+
+#pragma warning disable CS0162
+            /*
+             * Direct staging is intentionally disabled.
+             *
+             * DLMM can rename a stored mod VPK such as 659478_pak35_dir.vpk into a
+             * different live slot such as pak51_dir.vpk. Without DLMM's internal
+             * ownership state, renaming live pak##_dir.vpk files back to remoteId
+             * names can steal another mod's active slot and corrupt the user's
+             * setup. Keep this code dormant until a manifest-backed staging system
+             * exists.
+             */
             var result = new ApplyResult();
             var addonsPath = GetAddonsPath(gamePath);
             if (string.IsNullOrWhiteSpace(addonsPath) || !Directory.Exists(addonsPath))
@@ -75,8 +93,14 @@ namespace DL_Skin_Randomiser.Services
                         }
                     }
 
-                    if (!enabledAny && knownSlots.Any(slotName => File.Exists(Path.Combine(addonsPath, slotName))))
+                    var remainingDisabledVpks = FindDisabledVpks(addonsPath, mod.RemoteId).ToList();
+
+                    if (!enabledAny
+                        && remainingDisabledVpks.Count == 0
+                        && knownSlots.Any(slotName => File.Exists(Path.Combine(addonsPath, slotName))))
+                    {
                         enabledAny = true;
+                    }
 
                     if (!enabledAny)
                         result.StagingSkippedCount++;
@@ -113,6 +137,7 @@ namespace DL_Skin_Randomiser.Services
         {
             var disabledFileName = Path.GetFileName(disabledVpkPath);
             var prefix = $"{remoteId}_";
+
             if (!disabledFileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 return false;
 
@@ -120,9 +145,16 @@ namespace DL_Skin_Randomiser.Services
             if (string.IsNullOrWhiteSpace(targetFileName))
                 return false;
 
-            var targetPath = Path.Combine(Path.GetDirectoryName(disabledVpkPath) ?? "", targetFileName);
-            if (File.Exists(targetPath))
+            var directory = Path.GetDirectoryName(disabledVpkPath);
+            if (string.IsNullOrWhiteSpace(directory))
                 return false;
+
+            var targetPath = Path.Combine(directory, targetFileName);
+
+            if (File.Exists(targetPath))
+            {
+                File.Delete(targetPath);
+            }
 
             File.Move(disabledVpkPath, targetPath);
             return true;
@@ -229,6 +261,7 @@ namespace DL_Skin_Randomiser.Services
                 yield return targetFileName;
             }
         }
+#pragma warning restore CS0162
 
     }
 }

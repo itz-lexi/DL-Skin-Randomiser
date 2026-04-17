@@ -8,6 +8,7 @@ namespace DL_Skin_Randomiser.Models
         private string _hero = "";
         private string _folder = "";
         private bool _includedInRandomizer = true;
+        private bool _enabled;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -19,6 +20,9 @@ namespace DL_Skin_Randomiser.Models
         public string ImageUrl { get; set; } = "";
         public List<string> InstalledVpks { get; set; } = [];
         public bool IsInSelectedProfile { get; set; }
+        public bool IsEnabledInDlmmProfile { get; set; }
+        public List<string> ActiveVpkSlots { get; set; } = [];
+        public bool IsAmbiguousInAddons { get; set; }
         public string Hero
         {
             get => _hero;
@@ -118,7 +122,18 @@ namespace DL_Skin_Randomiser.Models
                 OnPropertyChanged();
             }
         }
-        public bool Enabled { get; set; }
+        public bool Enabled
+        {
+            get => _enabled;
+            set
+            {
+                if (_enabled == value)
+                    return;
+
+                _enabled = value;
+                OnPropertyChanged();
+            }
+        }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
