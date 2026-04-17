@@ -14,4 +14,19 @@
     <Folder Include="Config\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="obj\**" />
+    <Compile Remove="bin\**" />
+    <Compile Remove="obj-check\**" />
+    <Compile Remove="bin-check\**" />
+    <Page Remove="obj\**" />
+    <Page Remove="bin\**" />
+    <Page Remove="obj-check\**" />
+    <Page Remove="bin-check\**" />
+    <None Remove="obj\**" />
+    <None Remove="bin\**" />
+    <None Remove="obj-check\**" />
+    <None Remove="bin-check\**" />
+  </ItemGroup>
+
 </Project>

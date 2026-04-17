@@ -295,7 +295,7 @@
                                                                           Unchecked="ModPreference_Changed"
                                                                           Foreground="#EDEDED"
                                                                           Margin="0,0,0,4" />
-                                                                <CheckBox Content="Enabled in DLMM"
+                                                                <CheckBox Content="In use"
                                                                           IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                           Checked="ModPreference_Changed"
                                                                           Unchecked="ModPreference_Changed"

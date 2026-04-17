@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.IO;
+using System.Diagnostics;
 using DL_Skin_Randomiser.Models;
 using DL_Skin_Randomiser.Services;
 using Microsoft.Win32;
@@ -101,9 +102,18 @@ namespace DL_Skin_Randomiser
 
         private void ApplyButton_Click(object sender, RoutedEventArgs e)
         {
-            UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
-            ModApplyService.Apply(_statePath, _mods, _selectedProfileId);
-            StatusText.Text = $"Applied selection to {GetSelectedProfileName()} and saved preferences. Backup created next to state.json.";
+            try
+            {
+                UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
+                var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
+                StatusText.Text = result.WrittenCount == 0
+                    ? $"No mods were written to {GetSelectedProfileName()} because this profile has no visible mod entries."
+                    : BuildApplyStatus(result);
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Apply failed for {GetSelectedProfileName()}: {ex.Message}";
+            }
         }
 
         private void RandomisePlayButton_Click(object sender, RoutedEventArgs e)
@@ -112,9 +122,9 @@ namespace DL_Skin_Randomiser
             {
                 RandomiseCurrentLoadout();
                 UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
-                ModApplyService.Apply(_statePath, _mods, _selectedProfileId);
+                var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
                 GameLaunchService.Launch(_gamePath);
-                StatusText.Text = $"Randomised {_currentLoadout.Count} picks for {GetSelectedProfileName()}, applied, and launched Deadlock.";
+                StatusText.Text = $"Randomised {_currentLoadout.Count} picks, applied {result.WrittenCount} mods to {GetSelectedProfileName()}, and launched Deadlock.";
             }
             catch (Exception ex)
             {
@@ -582,6 +592,22 @@ namespace DL_Skin_Randomiser
                 .FirstOrDefault(profile => string.Equals(profile.Key, _selectedProfileId, StringComparison.OrdinalIgnoreCase))
                 ?.Name
                 ?? "selected profile";
+        }
+
+        private string BuildApplyStatus(ApplyResult result)
+        {
+            var status = $"Applied {result.WrittenCount} mods to {GetSelectedProfileName()}. Enabled: {result.EnabledCount}. Staged +{result.StagedEnabledCount}/-{result.StagedDisabledCount}. Backup created.";
+            return IsDlmmRunning()
+                ? $"{status} DLMM is open, so its window may not refresh until restart."
+                : status;
+        }
+
+        private static bool IsDlmmRunning()
+        {
+            return Process.GetProcesses()
+                .Any(process =>
+                    process.ProcessName.Contains("deadlock-mod-manager", StringComparison.OrdinalIgnoreCase)
+                    || process.ProcessName.Contains("Deadlock Mod Manager", StringComparison.OrdinalIgnoreCase));
         }
 
         private ProfilePreferences GetCurrentProfilePreferences()

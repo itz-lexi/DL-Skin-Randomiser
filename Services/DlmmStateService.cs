@@ -25,6 +25,7 @@ namespace DL_Skin_Randomiser.Services
             var profiles = GetProfiles(stateElement);
             var profileId = ResolveProfileId(activeProfileId, selectedProfileId, profiles);
             var enabledMods = GetEnabledMods(stateElement, profileId);
+            var profileModElements = GetProfileModElements(stateElement, profileId);
 
             var result = new DlmmStateSnapshot
             {
@@ -35,9 +36,13 @@ namespace DL_Skin_Randomiser.Services
                 Profiles = profiles
             };
 
-            var modElements = GetModElements(stateElement);
+            var modElements = profileModElements.Count > 0
+                ? profileModElements
+                : GetModElements(stateElement);
             if (modElements.Count == 0)
                 return result;
+
+            var hasProfileModList = profileModElements.Count > 0;
 
             foreach (var modElement in modElements)
             {
@@ -52,8 +57,9 @@ namespace DL_Skin_Randomiser.Services
                     Status = TryGetString(modElement, "status"),
                     Category = TryGetString(modElement, "category"),
                     ImageUrl = TryGetFirstString(modElement, "images"),
+                    InstalledVpks = GetStringArray(modElement, "installedVpks"),
                     Hero = DetectHero(modElement, name),
-                    IsInSelectedProfile = IsInProfile(enabledMods, remoteId),
+                    IsInSelectedProfile = hasProfileModList || IsInProfile(enabledMods, remoteId),
                     Enabled = IsEnabled(enabledMods, remoteId)
                 });
             }
@@ -62,6 +68,36 @@ namespace DL_Skin_Randomiser.Services
             Console.WriteLine($"Enabled: {result.Mods.Count(mod => mod.Enabled)}");
 
             return result;
+        }
+
+        private static List<JsonElement> GetProfileModElements(JsonElement stateElement, string profileId)
+        {
+            if (string.IsNullOrWhiteSpace(profileId))
+                return [];
+
+            var profiles = TryGetProperty(stateElement, "profiles");
+            if (profiles is not { ValueKind: JsonValueKind.Object })
+                return [];
+
+            if (!profiles.Value.TryGetProperty(profileId, out var profileElement))
+                return [];
+
+            if (!profileElement.TryGetProperty("mods", out var profileMods))
+                return [];
+
+            return profileMods.ValueKind switch
+            {
+                JsonValueKind.Array => profileMods
+                    .EnumerateArray()
+                    .Where(IsLikelyModElement)
+                    .ToList(),
+                JsonValueKind.Object => profileMods
+                    .EnumerateObject()
+                    .Select(property => property.Value)
+                    .Where(IsLikelyModElement)
+                    .ToList(),
+                _ => []
+            };
         }
 
         private static List<JsonElement> GetModElements(JsonElement stateElement)
@@ -141,7 +177,7 @@ namespace DL_Skin_Randomiser.Services
             return string.Equals(TryGetString(element, "status"), "installed", StringComparison.OrdinalIgnoreCase);
         }
 
-        public static void SaveEnabledMods(string path, IReadOnlyCollection<DlmmMod> mods, string selectedProfileId)
+        public static string SaveEnabledMods(string path, IReadOnlyCollection<DlmmMod> mods, string selectedProfileId)
         {
             var json = File.ReadAllText(path);
             var outerNode = JsonNode.Parse(json) as JsonObject
@@ -194,6 +230,7 @@ namespace DL_Skin_Randomiser.Services
             var backupPath = $"{path}.bak-{DateTime.Now:yyyyMMdd-HHmmss}";
             File.Copy(path, backupPath, overwrite: false);
             File.WriteAllText(path, outerNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            return backupPath;
         }
 
         private static JsonElement GetStateElement(JsonElement root)
@@ -368,6 +405,23 @@ namespace DL_Skin_Randomiser.Services
             return first.ValueKind == JsonValueKind.String
                 ? first.GetString() ?? ""
                 : "";
+        }
+
+        private static List<string> GetStringArray(JsonElement element, string propertyName)
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+                return [];
+
+            if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.Array)
+                return [];
+
+            return property
+                .EnumerateArray()
+                .Where(value => value.ValueKind == JsonValueKind.String)
+                .Select(value => value.GetString() ?? "")
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         private static string DetectHero(JsonElement modElement, string name)
