@@ -739,6 +739,16 @@ namespace DL_Skin_Randomiser
             HideNoticeBanner();
         }
 
+        private void DiscordLink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri)
+            {
+                UseShellExecute = true
+            });
+
+            e.Handled = true;
+        }
+
         private void NoticeTimer_Tick(object? sender, EventArgs e)
         {
             if (_noticeDuration <= TimeSpan.Zero)
