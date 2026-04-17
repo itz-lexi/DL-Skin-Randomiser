@@ -279,68 +279,58 @@
                     </Grid.ColumnDefinitions>
 
                     <Border Grid.Column="0" Style="{StaticResource TopPanel}">
-                        <StackPanel>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2*" />
-                                    <ColumnDefinition Width="110" />
-                                    <ColumnDefinition Width="140" />
-                                    <ColumnDefinition Width="180" />
-                                    <ColumnDefinition Width="180" />
-                                </Grid.ColumnDefinitions>
+                        <WrapPanel>
+                            <StackPanel Width="260" Margin="0,0,10,0">
+                                <TextBlock Text="Search mods" Style="{StaticResource FilterLabel}" />
+                                <TextBox x:Name="ModSearchBox"
+                                         VerticalContentAlignment="Center"
+                                         TextChanged="ModSearchBox_TextChanged" />
+                            </StackPanel>
 
-                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                                    <TextBlock Text="Search mods" Style="{StaticResource FilterLabel}" />
-                                    <TextBox x:Name="ModSearchBox"
-                                             VerticalContentAlignment="Center"
-                                             TextChanged="ModSearchBox_TextChanged" />
-                                </StackPanel>
+                            <StackPanel Width="96" Margin="0,0,10,0">
+                                <TextBlock Text="Use" Style="{StaticResource FilterLabel}" />
+                                <CheckBox x:Name="InUseFilterCheckBox"
+                                          Content="In use"
+                                          Foreground="#EDEDED"
+                                          VerticalAlignment="Center"
+                                          Margin="0,6,0,0"
+                                          Checked="FilterCheckBox_Changed"
+                                          Unchecked="FilterCheckBox_Changed" />
+                            </StackPanel>
 
-                                <StackPanel Grid.Column="1" Margin="0,0,10,0">
-                                    <TextBlock Text="Use" Style="{StaticResource FilterLabel}" />
-                                    <CheckBox x:Name="InUseFilterCheckBox"
-                                              Content="In use"
-                                              Foreground="#EDEDED"
-                                              VerticalAlignment="Center"
-                                              Margin="0,6,0,0"
-                                              Checked="FilterCheckBox_Changed"
-                                              Unchecked="FilterCheckBox_Changed" />
-                                </StackPanel>
+                            <StackPanel Width="126" Margin="0,0,10,0">
+                                <TextBlock Text="Randomiser" Style="{StaticResource FilterLabel}" />
+                                <CheckBox x:Name="InRandomizerFilterCheckBox"
+                                          Content="Included"
+                                          Foreground="#EDEDED"
+                                          VerticalAlignment="Center"
+                                          Margin="0,6,0,0"
+                                          Checked="FilterCheckBox_Changed"
+                                          Unchecked="FilterCheckBox_Changed" />
+                            </StackPanel>
 
-                                <StackPanel Grid.Column="2" Margin="0,0,10,0">
-                                    <TextBlock Text="Randomiser" Style="{StaticResource FilterLabel}" />
-                                    <CheckBox x:Name="InRandomizerFilterCheckBox"
-                                              Content="Included"
-                                              Foreground="#EDEDED"
-                                              VerticalAlignment="Center"
-                                              Margin="0,6,0,0"
-                                              Checked="FilterCheckBox_Changed"
-                                              Unchecked="FilterCheckBox_Changed" />
-                                </StackPanel>
+                            <StackPanel Width="170" Margin="0,0,10,0">
+                                <TextBlock Text="Character" Style="{StaticResource FilterLabel}" />
+                                <ComboBox x:Name="CharacterFilterBox"
+                                          IsEditable="True"
+                                          IsTextSearchEnabled="True"
+                                          StaysOpenOnEdit="True"
+                                          SelectionChanged="CharacterFilterBox_SelectionChanged"
+                                          DropDownClosed="CharacterFilterBox_DropDownClosed"
+                                          KeyUp="CharacterFilterBox_KeyUp" />
+                            </StackPanel>
 
-                                <StackPanel Grid.Column="3" Margin="0,0,10,0">
-                                    <TextBlock Text="Character" Style="{StaticResource FilterLabel}" />
-                                    <ComboBox x:Name="CharacterFilterBox"
-                                              IsEditable="True"
-                                              IsTextSearchEnabled="True"
-                                              StaysOpenOnEdit="True"
-                                              SelectionChanged="CharacterFilterBox_SelectionChanged"
-                                              DropDownClosed="CharacterFilterBox_DropDownClosed"
-                                              KeyUp="CharacterFilterBox_KeyUp" />
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="4">
-                                    <TextBlock Text="Folder" Style="{StaticResource FilterLabel}" />
-                                    <ComboBox x:Name="FolderFilterBox"
-                                              IsEditable="True"
-                                              IsTextSearchEnabled="True"
-                                              StaysOpenOnEdit="True"
-                                              SelectionChanged="FolderFilterBox_SelectionChanged"
-                                              DropDownClosed="FolderFilterBox_DropDownClosed"
-                                              KeyUp="FolderFilterBox_KeyUp" />
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
+                            <StackPanel Width="170">
+                                <TextBlock Text="Folder" Style="{StaticResource FilterLabel}" />
+                                <ComboBox x:Name="FolderFilterBox"
+                                          IsEditable="True"
+                                          IsTextSearchEnabled="True"
+                                          StaysOpenOnEdit="True"
+                                          SelectionChanged="FolderFilterBox_SelectionChanged"
+                                          DropDownClosed="FolderFilterBox_DropDownClosed"
+                                          KeyUp="FolderFilterBox_KeyUp" />
+                            </StackPanel>
+                        </WrapPanel>
                     </Border>
 
                     <Border Grid.Column="1" Style="{StaticResource TopPanel}" Margin="0,0,0,10">

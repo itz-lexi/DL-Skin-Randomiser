@@ -36,7 +36,6 @@ namespace DL_Skin_Randomiser
         private readonly System.Windows.Threading.DispatcherTimer _noticeTimer = new();
         private bool _isBindingGroups;
         private bool _isLoading;
-        private bool _hasUserChangedSectionExpansion;
         private DateTime _noticeExpiresAt;
         private TimeSpan _noticeDuration = TimeSpan.Zero;
 
@@ -63,7 +62,6 @@ namespace DL_Skin_Randomiser
         private void LoadMods()
         {
             _isLoading = true;
-            _hasUserChangedSectionExpansion = false;
             _preferences = UserPreferenceService.Load(_preferencesPath);
             _statePath = EnsureStatePath(_preferences);
 
@@ -94,7 +92,9 @@ namespace DL_Skin_Randomiser
                 .ToList();
 
             UserPreferenceService.Apply(_mods, _preferences, _selectedProfileId);
-            _currentLoadout = GetCurrentProfilePreferences().LastSessionLoadout;
+            var profilePreferences = GetCurrentProfilePreferences();
+            _currentLoadout = profilePreferences.LastSessionLoadout;
+            _expandedSectionKey = profilePreferences.ExpandedSections?.FirstOrDefault() ?? "";
             RefreshCharacterOptions();
             RefreshFolderOptions();
             RefreshProfileOptions();
@@ -660,8 +660,8 @@ namespace DL_Skin_Randomiser
             if (_isBindingGroups || sender is not Expander { DataContext: HeroModGroup selectedGroup })
                 return;
 
-            _hasUserChangedSectionExpansion = true;
             _expandedSectionKey = selectedGroup.Hero;
+            UserPreferenceService.SaveExpandedSections(_preferencesPath, _selectedProfileId, [_expandedSectionKey]);
 
             if (HeroGroupsList.ItemsSource is not IEnumerable<HeroModGroup> groups)
                 return;
@@ -677,9 +677,11 @@ namespace DL_Skin_Randomiser
             if (_isBindingGroups || sender is not Expander { DataContext: HeroModGroup selectedGroup })
                 return;
 
-            _hasUserChangedSectionExpansion = true;
             if (string.Equals(_expandedSectionKey, selectedGroup.Hero, StringComparison.OrdinalIgnoreCase))
+            {
                 _expandedSectionKey = "";
+                UserPreferenceService.SaveExpandedSections(_preferencesPath, _selectedProfileId, []);
+            }
         }
 
         private void ModPreference_Changed(object sender, RoutedEventArgs e)
@@ -869,9 +871,6 @@ namespace DL_Skin_Randomiser
 
         private bool ShouldExpandGroup(string groupKey)
         {
-            if (!_hasUserChangedSectionExpansion)
-                return true;
-
             if (string.IsNullOrWhiteSpace(_expandedSectionKey))
                 return false;
 

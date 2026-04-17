@@ -102,6 +102,18 @@ namespace DL_Skin_Randomiser.Services
             SavePreferences(path, preferences);
         }
 
+        public static void SaveExpandedSections(string path, string profileId, IEnumerable<string> expandedSections)
+        {
+            var preferences = Load(path);
+            var profilePreferences = GetOrCreateProfilePreferences(preferences, profileId);
+            profilePreferences.ExpandedSections = expandedSections
+                .Select(HeroDisplayService.ToKey)
+                .Where(section => !string.IsNullOrWhiteSpace(section))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            SavePreferences(path, preferences);
+        }
+
         public static void SaveStatePath(string path, string statePath)
         {
             var preferences = Load(path);
@@ -225,6 +237,7 @@ namespace DL_Skin_Randomiser.Services
                 {
                     CustomFolders = preferences.CustomFolders,
                     LastSessionLoadout = preferences.LastSessionLoadout,
+                    ExpandedSections = [],
                     Mods = preferences.Mods
                 };
             }
@@ -283,6 +296,7 @@ namespace DL_Skin_Randomiser.Services
             {
                 CustomFolders = preferences.CustomFolders,
                 LastSessionLoadout = preferences.LastSessionLoadout,
+                ExpandedSections = [],
                 Mods = preferences.Mods
             };
         }
