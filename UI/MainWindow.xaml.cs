@@ -36,6 +36,7 @@ namespace DL_Skin_Randomiser
         private string _presetOptionsSignature = "";
         private UserPreferences _preferences = new();
         private readonly System.Windows.Threading.DispatcherTimer _noticeTimer = new();
+        private UpdateCheckResult? _latestUpdate;
         private bool _isBindingGroups;
         private bool _isLoading;
         private DateTime _noticeExpiresAt;
@@ -220,23 +221,61 @@ namespace DL_Skin_Randomiser
             try
             {
                 var result = await UpdateService.CheckForUpdatesAsync();
+                _latestUpdate = result;
+                DownloadUpdateButton.IsEnabled = result.UpdateAvailable && result.HasInstaller;
+
                 if (result.UpdateAvailable)
                 {
+                    UpdateStatusText.Text = result.HasInstaller
+                        ? $"Version {result.LatestVersion} is available. Download the installer to update."
+                        : $"Version {result.LatestVersion} is available, but no setup installer was found on the release.";
                     SetNotice(
                         "Update available",
-                        $"Version {result.LatestVersion} is available. Current version: {result.CurrentVersion}. Use Open releases to download it.",
+                        $"Version {result.LatestVersion} is available. Current version: {result.CurrentVersion}.",
                         NoticeKind.Info,
                         showBanner: true);
                     return;
                 }
 
+                UpdateStatusText.Text = $"You are on the latest release: {result.CurrentVersion}.";
                 if (showWhenCurrent)
                     SetNotice("Up to date", $"You are on the latest release: {result.CurrentVersion}.", NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
             {
+                _latestUpdate = null;
+                DownloadUpdateButton.IsEnabled = false;
+                UpdateStatusText.Text = "Could not check GitHub Releases. If the repo is private, update checks only work after the repo is public.";
                 if (showWhenCurrent)
                     SetNotice("Update check failed", $"Could not check GitHub Releases: {ex.Message}", NoticeKind.Warning, showBanner: true);
+            }
+        }
+
+        private async void DownloadUpdateButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_latestUpdate is null || !_latestUpdate.HasInstaller)
+            {
+                SetNotice("No installer", "Check for updates first. The latest release needs a setup installer asset.", NoticeKind.Warning, showBanner: true);
+                return;
+            }
+
+            try
+            {
+                DownloadUpdateButton.IsEnabled = false;
+                UpdateStatusText.Text = $"Downloading {_latestUpdate.InstallerName}...";
+                var installerPath = await UpdateService.DownloadInstallerAsync(_latestUpdate);
+                UpdateStatusText.Text = $"Downloaded update installer: {installerPath}";
+                SetNotice("Update downloaded", "The installer will open now. Close this app if the installer asks before updating.", NoticeKind.Success, showBanner: true);
+                Process.Start(new ProcessStartInfo(installerPath)
+                {
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                DownloadUpdateButton.IsEnabled = _latestUpdate?.HasInstaller == true;
+                UpdateStatusText.Text = "Download failed.";
+                SetNotice("Download failed", $"Could not download the update installer: {ex.Message}", NoticeKind.Error, showBanner: true);
             }
         }
 

@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
@@ -38,6 +39,24 @@ namespace DL_Skin_Randomiser.Services
             var releaseUrl = root.TryGetProperty("html_url", out var urlElement)
                 ? urlElement.GetString() ?? ""
                 : "";
+            var installerName = "";
+            var installerDownloadUrl = "";
+
+            if (root.TryGetProperty("assets", out var assetsElement))
+            {
+                foreach (var asset in assetsElement.EnumerateArray())
+                {
+                    var assetName = asset.GetProperty("name").GetString() ?? "";
+                    if (!assetName.EndsWith("-setup.exe", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    installerName = assetName;
+                    installerDownloadUrl = asset.TryGetProperty("browser_download_url", out var downloadElement)
+                        ? downloadElement.GetString() ?? ""
+                        : "";
+                    break;
+                }
+            }
 
             var currentVersion = NormalizeVersion(CurrentVersion);
             var latestVersion = NormalizeVersion(latestTag);
@@ -48,8 +67,31 @@ namespace DL_Skin_Randomiser.Services
                 LatestVersion = latestVersion.ToString(),
                 ReleaseName = releaseName,
                 ReleaseUrl = releaseUrl,
+                InstallerName = installerName,
+                InstallerDownloadUrl = installerDownloadUrl,
                 UpdateAvailable = latestVersion > currentVersion
             };
+        }
+
+        public static async Task<string> DownloadInstallerAsync(UpdateCheckResult update)
+        {
+            if (!update.HasInstaller)
+                throw new InvalidOperationException("The latest GitHub release does not include a setup installer.");
+
+            var downloadsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads");
+            Directory.CreateDirectory(downloadsPath);
+
+            var destinationPath = Path.Combine(downloadsPath, update.InstallerName);
+            using var response = await HttpClient.GetAsync(update.InstallerDownloadUrl);
+            response.EnsureSuccessStatusCode();
+
+            await using var sourceStream = await response.Content.ReadAsStreamAsync();
+            await using var destinationStream = File.Create(destinationPath);
+            await sourceStream.CopyToAsync(destinationStream);
+
+            return destinationPath;
         }
 
         private static Version NormalizeVersion(string version)

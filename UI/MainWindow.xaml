@@ -732,14 +732,6 @@
                                             Width="120"
                                             Click="BackupPreferencesButton_Click"
                                             Content="Backup setup" />
-                                    <Button x:Name="CheckUpdatesButton"
-                                            Width="120"
-                                            Click="CheckUpdatesButton_Click"
-                                            Content="Check updates" />
-                                    <Button x:Name="OpenReleasesButton"
-                                            Width="120"
-                                            Click="OpenReleasesButton_Click"
-                                            Content="Open releases" />
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <TextBlock Margin="0,0,8,8"
@@ -782,6 +774,98 @@
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
+                    <ToggleButton x:Name="UpdatesToggle"
+                                  Margin="0,0,8,8"
+                                  HorizontalContentAlignment="Stretch"
+                                  Background="#1D2022"
+                                  BorderBrush="#34383C"
+                                  BorderThickness="1"
+                                  Padding="10,7"
+                                  Cursor="Hand">
+                        <ToggleButton.Template>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <Border x:Name="UpdatesToggleChrome"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="8"
+                                        Padding="{TemplateBinding Padding}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="22"
+                                                Height="22"
+                                                Background="#282D31"
+                                                BorderBrush="#3A3F43"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Margin="0,0,9,0">
+                                            <Path x:Name="UpdatesChevron"
+                                                  Data="M 0 0 L 5 5 L 10 0"
+                                                  Stroke="{StaticResource AccentPinkBrush}"
+                                                  StrokeThickness="2"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  RenderTransformOrigin="0.5,0.5">
+                                                <Path.RenderTransform>
+                                                    <RotateTransform Angle="0" />
+                                                </Path.RenderTransform>
+                                            </Path>
+                                        </Border>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="Updates"
+                                                   Foreground="#E7EBED"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="UpdatesToggleChrome" Property="BorderBrush" Value="{StaticResource PrimaryActionBrush}" />
+                                        <Setter TargetName="UpdatesToggleChrome" Property="Background" Value="#202326" />
+                                    </Trigger>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="UpdatesToggleChrome" Property="BorderBrush" Value="{StaticResource AccentPinkBrush}" />
+                                        <Setter TargetName="UpdatesChevron" Property="RenderTransform">
+                                            <Setter.Value>
+                                                <RotateTransform Angle="180" />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </ToggleButton.Template>
+                    </ToggleButton>
+                    <Border Style="{StaticResource TopPanel}"
+                            Margin="0,0,8,8"
+                            Visibility="{Binding IsChecked, ElementName=UpdatesToggle, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <WrapPanel>
+                                <Button x:Name="CheckUpdatesButton"
+                                        Width="120"
+                                        Click="CheckUpdatesButton_Click"
+                                        Content="Check updates" />
+                                <Button x:Name="DownloadUpdateButton"
+                                        Width="140"
+                                        Click="DownloadUpdateButton_Click"
+                                        Content="Download update"
+                                        IsEnabled="False" />
+                                <Button x:Name="OpenReleasesButton"
+                                        Width="120"
+                                        Click="OpenReleasesButton_Click"
+                                        Content="Open releases" />
+                            </WrapPanel>
+                            <TextBlock x:Name="UpdateStatusText"
+                                       Text="Check GitHub Releases for app updates."
+                                       Foreground="#AEB7BA"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <Grid Margin="0,2,0,0">
