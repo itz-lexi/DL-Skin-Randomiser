@@ -76,6 +76,7 @@ namespace DL_Skin_Randomiser.Services
             builder.AppendLine();
             builder.AppendLine("Addons diagnostics:");
             builder.AppendLine($"  Live VPKs: {addonsState.LiveSlotCount}");
+            builder.AppendLine($"  App staged: {addonsState.AppStagedModCount}");
             builder.AppendLine($"  Log matched: {addonsState.LogMatchedModCount}");
             builder.AppendLine($"  Hash matched: {addonsState.HashMatchedModCount}");
             builder.AppendLine($"  Likely active: {addonsState.ConfirmedModCount + addonsState.ProfileDisambiguatedModCount}");

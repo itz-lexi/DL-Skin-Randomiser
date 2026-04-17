@@ -154,6 +154,8 @@ namespace DL_Skin_Randomiser
                     return;
                 }
 
+                _addonsState = AddonsInventoryService.ApplyPhysicalState(_gamePath, _mods);
+                RefreshAddonsDiagnostics();
                 var applyStatus = BuildApplyStatus(result);
                 LogDiagnosticSnapshot("Apply complete", applyStatus);
                 SetNotice("Apply complete", applyStatus, NoticeKind.Success, showBanner: true);
@@ -175,6 +177,8 @@ namespace DL_Skin_Randomiser
 
                 UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
                 var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
+                _addonsState = AddonsInventoryService.ApplyPhysicalState(_gamePath, _mods);
+                RefreshAddonsDiagnostics();
                 if (result.RequiresDlmmApply)
                 {
                     LogDiagnosticSnapshot("Randomise & Play pending DLMM apply", $"Randomised {_currentLoadout.Count} picks and updated {GetSelectedProfileName()}. DLMM apply/rebuild is required.");
@@ -613,7 +617,7 @@ namespace DL_Skin_Randomiser
         {
             AddonsDiagnosticsList.ItemsSource = _addonsState.Diagnostics;
             AddonsDiagnosticsSummaryText.Text =
-                $"{_addonsState.LiveSlotCount} live VPKs • {_addonsState.LogMatchedModCount} log matched • {_addonsState.HashMatchedModCount} hash matched • {_addonsState.ConfirmedModCount + _addonsState.ProfileDisambiguatedModCount} likely active • {_addonsState.SlotOnlyGuessCount} weak guesses • {_addonsState.UnmatchedLiveSlotCount} unmatched • {_addonsState.StateOnlyModCount} stale state";
+                $"{_addonsState.LiveSlotCount} live VPKs • {_addonsState.AppStagedModCount} app staged • {_addonsState.LogMatchedModCount} log matched • {_addonsState.HashMatchedModCount} hash matched • {_addonsState.ConfirmedModCount + _addonsState.ProfileDisambiguatedModCount} likely active • {_addonsState.SlotOnlyGuessCount} weak guesses • {_addonsState.UnmatchedLiveSlotCount} unmatched • {_addonsState.StateOnlyModCount} stale state";
         }
 
         private void LogDiagnosticSnapshot(string action, string message = "", Exception? exception = null)
@@ -1163,6 +1167,9 @@ namespace DL_Skin_Randomiser
                 return $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. In use from DLMM state: {inUseCount}.";
 
             var status = $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. In use from game files: {inUseCount}/{addonsState.LiveSlotCount} live VPKs.";
+
+            if (addonsState.AppStagedModCount > 0)
+                status += $" {addonsState.AppStagedModCount} were staged by this app.";
 
             if (addonsState.LogMatchedModCount > 0)
                 status += $" {addonsState.LogMatchedModCount} were matched from DLMM's apply log.";

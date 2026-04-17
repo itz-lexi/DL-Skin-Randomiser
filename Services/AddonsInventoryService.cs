@@ -62,6 +62,7 @@ namespace DL_Skin_Randomiser.Services
                     StringComparer.OrdinalIgnoreCase);
 
             var logSlotOwners = GetLatestLogSlotOwners(gamePath, liveSlots);
+            var appStagedLiveVpks = ManifestGameModStagingService.GetAppStagedLiveVpks(gamePath);
 
             var modsBySlot = knownSlotsByRemoteId
                 .SelectMany(pair => pair.Value.Select(slot => new { RemoteId = pair.Key, Slot = slot }))
@@ -90,6 +91,27 @@ namespace DL_Skin_Randomiser.Services
             foreach (var slot in liveSlots)
             {
                 result.LiveSlotCount++;
+                if (appStagedLiveVpks.TryGetValue(slot, out var appStagedVpk))
+                {
+                    var appStagedMod = mods.FirstOrDefault(candidate => string.Equals(candidate.RemoteId, appStagedVpk.RemoteId, StringComparison.OrdinalIgnoreCase));
+                    if (appStagedMod is not null)
+                    {
+                        appStagedMod.Enabled = true;
+                        appStagedMod.ActiveVpkSlots.Add(slot);
+                        result.AppStagedModCount++;
+                        result.Diagnostics.Add(BuildModDiagnostic(
+                            appStagedMod,
+                            "App staged",
+                            slot,
+                            "DL Skin Randomiser manifest",
+                            $"The app staged this live VPK from {appStagedVpk.SourceFileName} and verified the file hash still matches its manifest.",
+                            0,
+                            "#B76DFF",
+                            knownSlotsByRemoteId));
+                        continue;
+                    }
+                }
+
                 if (logSlotOwners.TryGetValue(slot, out var loggedRemoteId))
                 {
                     var loggedMod = mods.FirstOrDefault(candidate => string.Equals(candidate.RemoteId, loggedRemoteId, StringComparison.OrdinalIgnoreCase));
@@ -482,6 +504,7 @@ namespace DL_Skin_Randomiser.Services
     {
         public List<AddonsDiagnosticItem> Diagnostics { get; set; } = [];
         public int LiveSlotCount { get; set; }
+        public int AppStagedModCount { get; set; }
         public int LogMatchedModCount { get; set; }
         public int HashMatchedModCount { get; set; }
         public int ConfirmedModCount { get; set; }
