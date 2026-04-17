@@ -116,7 +116,10 @@ namespace DL_Skin_Randomiser.Services
             if (!disabledFileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            var targetFileName = disabledFileName[prefix.Length..];
+            var targetFileName = Path.GetFileName(disabledFileName[prefix.Length..]);
+            if (string.IsNullOrWhiteSpace(targetFileName))
+                return false;
+
             var targetPath = Path.Combine(Path.GetDirectoryName(disabledVpkPath) ?? "", targetFileName);
             if (File.Exists(targetPath))
                 return false;
@@ -127,11 +130,16 @@ namespace DL_Skin_Randomiser.Services
 
         private static bool DisableVpk(string addonsPath, string remoteId, string targetVpkName)
         {
-            var targetPath = Path.Combine(addonsPath, targetVpkName);
+            var safeTargetVpkName = Path.GetFileName(targetVpkName);
+
+            if (string.IsNullOrWhiteSpace(safeTargetVpkName))
+                return false;
+
+            var targetPath = Path.Combine(addonsPath, safeTargetVpkName);
             if (!File.Exists(targetPath))
                 return false;
 
-            var disabledPath = Path.Combine(addonsPath, $"{remoteId}_{targetVpkName}");
+            var disabledPath = Path.Combine(addonsPath, $"{remoteId}_{safeTargetVpkName}");
             if (File.Exists(disabledPath))
                 return false;
 
@@ -148,7 +156,12 @@ namespace DL_Skin_Randomiser.Services
 
         private static IEnumerable<string> GetKnownSlotNames(string addonsPath, DlmmMod mod)
         {
-            var slotNames = new HashSet<string>(mod.InstalledVpks, StringComparer.OrdinalIgnoreCase);
+            var slotNames = new HashSet<string>(
+                mod.InstalledVpks
+                    .Select(Path.GetFileName)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => name!),
+                StringComparer.OrdinalIgnoreCase);
 
             foreach (var disabledVpk in FindDisabledVpks(addonsPath, mod.RemoteId))
             {
