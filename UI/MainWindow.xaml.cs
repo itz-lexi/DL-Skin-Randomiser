@@ -21,7 +21,6 @@ namespace DL_Skin_Randomiser
     {
         private const string AllCharactersFilter = "All characters";
         private const string AllFoldersFilter = "All folders";
-        private const string AllStatusesFilter = "All statuses";
 
         private readonly string _preferencesPath = UserPreferenceService.DefaultPreferencesPath;
         private string _statePath = "";
@@ -29,6 +28,9 @@ namespace DL_Skin_Randomiser
         private string _selectedProfileId = "";
         private List<DlmmMod> _mods = [];
         private List<LoadoutPick> _currentLoadout = [];
+        private string _expandedSectionKey = "";
+        private string _folderOptionsSignature = "";
+        private string _characterOptionsSignature = "";
         private UserPreferences _preferences = new();
         private bool _isBindingGroups;
         private bool _isLoading;
@@ -87,15 +89,10 @@ namespace DL_Skin_Randomiser
             _currentLoadout = GetCurrentProfilePreferences().LastSessionLoadout;
             RefreshCharacterOptions();
             RefreshFolderOptions();
-            RefreshStatusOptions();
             RefreshProfileOptions();
             RefreshLoadoutSummary();
+            ApplyNonRandomizerExclusions();
             BindGroups();
-
-            foreach (var mod in _mods)
-            {
-                Console.WriteLine($"{mod.Name} - {mod.Enabled}");
-            }
 
             SetNotice("Profile loaded", $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. In use: {_mods.Count(mod => mod.Enabled)}", NoticeKind.Success);
             StatePathText.Text = _statePath;
@@ -105,13 +102,14 @@ namespace DL_Skin_Randomiser
         private void RandomiseButton_Click(object sender, RoutedEventArgs e)
         {
             RandomiseCurrentLoadout();
-            SetNotice("Loadout ready", $"Randomised {_currentLoadout.Count} hero picks. Apply when you are happy with them.", NoticeKind.Success, showBanner: true);
+            SetNotice("Reroll ready", $"Rerolled {_currentLoadout.Count} hero picks. Apply or launch when you are happy with them.", NoticeKind.Success, showBanner: true);
         }
 
         private void ApplyButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
+                ValidateApplyInputs(requireGamePath: false);
                 UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
                 var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
                 if (result.WrittenCount == 0)
@@ -132,11 +130,14 @@ namespace DL_Skin_Randomiser
         {
             try
             {
-                RandomiseCurrentLoadout();
+                ValidateApplyInputs(requireGamePath: true);
+                if (_currentLoadout.Count == 0)
+                    RandomiseCurrentLoadout();
+
                 UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
                 var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
                 GameLaunchService.Launch(_gamePath);
-                SetNotice("Deadlock launched", $"Randomised {_currentLoadout.Count} picks, applied {result.WrittenCount} mods to {GetSelectedProfileName()}, and launched Deadlock.", NoticeKind.Success, showBanner: true);
+                SetNotice("Deadlock launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock. Use Reroll before launch when you want a different set.", NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
             {
@@ -171,13 +172,14 @@ namespace DL_Skin_Randomiser
             _preferences = UserPreferenceService.Load(_preferencesPath);
             NewFolderTextBox.Text = "";
             RefreshFolderOptions();
+            BindGroups();
             AutoSavePreferences(showStatus: false);
-            SetNotice("Folder added", $"Added folder {HeroDisplayService.ToDisplayName(folderName)}.", NoticeKind.Success);
+            SetNotice("Folder added", $"Added folder {folderName.Trim()}.", NoticeKind.Success);
         }
 
         private void RemoveFolderButton_Click(object sender, RoutedEventArgs e)
         {
-            var folder = NormalizeFolder(FolderFilterBox.Text);
+            var folder = RemoveFolderBox.SelectedValue as string ?? "";
             if (string.IsNullOrWhiteSpace(folder))
             {
                 SetNotice("Choose a folder", "Choose a folder to remove.", NoticeKind.Warning, showBanner: true);
@@ -193,11 +195,11 @@ namespace DL_Skin_Randomiser
             UserPreferenceService.RemoveCustomFolder(_preferencesPath, _selectedProfileId, folder);
             _preferences = UserPreferenceService.Load(_preferencesPath);
             FolderFilterBox.Text = AllFoldersFilter;
+            RemoveFolderBox.SelectedValue = null;
             RefreshFolderOptions();
-            RefreshCharacterOptions();
             BindGroups();
             AutoSavePreferences(showStatus: false);
-            SetNotice("Folder removed", $"Removed folder {HeroDisplayService.ToDisplayName(folder)}.", NoticeKind.Success, showBanner: true);
+            SetNotice("Folder removed", $"Removed folder {GetFolderDisplayName(folder)}.", NoticeKind.Success, showBanner: true);
         }
 
         private string EnsureStatePath(UserPreferences preferences)
@@ -280,24 +282,31 @@ namespace DL_Skin_Randomiser
 
             var filter = NormalizeFilter(CharacterFilterBox.Text);
             var folderFilter = NormalizeFolder(FolderFilterBox.Text);
-            var statusFilter = NormalizeStatus(StatusFilterBox.Text);
             var searchText = NormalizeSearch(ModSearchBox.Text);
+            var inUseOnly = InUseFilterCheckBox.IsChecked == true;
+            var inRandomizerOnly = InRandomizerFilterCheckBox.IsChecked == true;
             var groupedMods = _mods
                 .Where(mod => CharacterMatchesFilter(mod, filter))
                 .Where(mod => FolderMatchesFilter(mod, folderFilter))
-                .Where(mod => StatusMatchesFilter(mod, statusFilter))
+                .Where(mod => !inUseOnly || mod.Enabled)
+                .Where(mod => !inRandomizerOnly || mod.IncludedInRandomizer)
                 .Where(mod => SearchMatchesFilter(mod, searchText))
                 .GroupBy(GetSectionKey)
                 .Select(group => new HeroModGroup
                 {
                     Hero = group.Key,
+                    IsFolder = group.Any(mod => !string.IsNullOrWhiteSpace(NormalizeFolder(mod.Folder))),
+                    DisplayName = group.Any(mod => !string.IsNullOrWhiteSpace(NormalizeFolder(mod.Folder)))
+                        ? GetFolderDisplayName(group.Key)
+                        : "",
+                    IsExpanded = ShouldExpandGroup(group.Key),
                     Mods = group.OrderByDescending(mod => mod.Enabled)
                         .ThenByDescending(mod => mod.IncludedInRandomizer)
                         .ThenBy(mod => mod.Name)
                         .ToList()
                 })
-                .OrderBy(group => group.Hero == "unknown")
-                .ThenBy(group => group.Hero)
+                .OrderBy(GetSectionSortRank)
+                .ThenBy(group => group.DisplayHero)
                 .ToList();
 
             HeroGroupsList.ItemsSource = groupedMods;
@@ -349,23 +358,28 @@ namespace DL_Skin_Randomiser
         {
             var profilePreferences = GetCurrentProfilePreferences();
             var folderKeys = profilePreferences.CustomFolders
-                .Concat(_mods
-                    .Where(mod => !string.IsNullOrWhiteSpace(mod.Folder))
-                    .Select(mod => NormalizeFolder(mod.Folder)))
                 .Where(folder => !string.IsNullOrWhiteSpace(folder))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(folder => HeroDisplayService.ToDisplayName(folder))
+                .GroupBy(HeroDisplayService.ToKey, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.Last())
+                .OrderBy(folder => folder)
                 .ToList();
 
-            FolderOptions =
+            List<CharacterOption> nextFolderOptions =
             [
                 new CharacterOption { Key = "", Name = "(None)" },
                 ..folderKeys.Select(folder => new CharacterOption
                 {
-                    Key = folder,
-                    Name = HeroDisplayService.ToDisplayName(folder)
+                    Key = HeroDisplayService.ToKey(folder),
+                    Name = folder
                 })
             ];
+
+            var signature = BuildOptionSignature(nextFolderOptions);
+            if (string.Equals(signature, _folderOptionsSignature, StringComparison.Ordinal))
+                return;
+
+            _folderOptionsSignature = signature;
+            FolderOptions = nextFolderOptions;
 
             var selectedFilter = FolderFilterBox.Text;
             FolderFilterBox.ItemsSource = new[] { AllFoldersFilter }
@@ -376,6 +390,12 @@ namespace DL_Skin_Randomiser
                 FolderFilterBox.Text = AllFoldersFilter;
             else
                 FolderFilterBox.Text = selectedFilter;
+
+            var selectedRemoveFolder = RemoveFolderBox.SelectedValue as string;
+            RemoveFolderBox.ItemsSource = FolderOptions
+                .Where(option => !string.IsNullOrWhiteSpace(option.Key))
+                .ToList();
+            RemoveFolderBox.SelectedValue = selectedRemoveFolder;
         }
 
         private void RefreshCharacterOptions()
@@ -393,6 +413,12 @@ namespace DL_Skin_Randomiser
                 })
                 .ToList();
 
+            var signature = BuildOptionSignature(CharacterOptions);
+            if (string.Equals(signature, _characterOptionsSignature, StringComparison.Ordinal))
+                return;
+
+            _characterOptionsSignature = signature;
+
             var selectedFilter = CharacterFilterBox.Text;
             CharacterFilterBox.ItemsSource = new[] { AllCharactersFilter }
                 .Concat(CharacterOptions.Select(option => option.Name))
@@ -402,25 +428,6 @@ namespace DL_Skin_Randomiser
                 CharacterFilterBox.Text = AllCharactersFilter;
             else
                 CharacterFilterBox.Text = selectedFilter;
-        }
-
-        private void RefreshStatusOptions()
-        {
-            var selectedFilter = StatusFilterBox.Text;
-            var statuses = _mods
-                .Select(mod => NormalizeStatus(mod.Status))
-                .Where(status => !string.IsNullOrWhiteSpace(status))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(status => HeroDisplayService.ToDisplayName(status))
-                .Select(HeroDisplayService.ToDisplayName)
-                .ToList();
-
-            StatusFilterBox.ItemsSource = new[] { AllStatusesFilter }.Concat(statuses).ToList();
-
-            if (string.IsNullOrWhiteSpace(selectedFilter))
-                StatusFilterBox.Text = AllStatusesFilter;
-            else
-                StatusFilterBox.Text = selectedFilter;
         }
 
         private void RefreshProfileOptions()
@@ -497,13 +504,10 @@ namespace DL_Skin_Randomiser
             BindGroups();
         }
 
-        private void StatusFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void FilterCheckBox_Changed(object sender, RoutedEventArgs e)
         {
             if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
-
-            if (StatusFilterBox.SelectedItem is string selectedStatus)
-                StatusFilterBox.Text = selectedStatus;
 
             Dispatcher.BeginInvoke(BindGroups);
         }
@@ -532,8 +536,10 @@ namespace DL_Skin_Randomiser
 
             Dispatcher.BeginInvoke(() =>
             {
+                DlmmMod? changedMod = null;
                 if (sender is ComboBox { DataContext: DlmmMod mod })
                 {
+                    changedMod = mod;
                     if (!string.IsNullOrWhiteSpace(mod.Folder))
                     {
                         mod.Hero = "unknown";
@@ -541,10 +547,9 @@ namespace DL_Skin_Randomiser
                     }
                 }
 
-                ApplyFolderExclusions();
-                RefreshFolderOptions();
-                RefreshCharacterOptions();
-                AutoSavePreferences();
+                ApplyNonRandomizerExclusions(changedMod);
+                BindGroups();
+                AutoSavePreferences(mod: changedMod);
             });
         }
 
@@ -553,8 +558,8 @@ namespace DL_Skin_Randomiser
             if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
 
-            ApplyFolderExclusions();
-            RefreshFolderOptions();
+            ApplyNonRandomizerExclusions();
+            BindGroups();
             AutoSavePreferences();
         }
 
@@ -565,15 +570,52 @@ namespace DL_Skin_Randomiser
 
             Dispatcher.BeginInvoke(() =>
             {
+                DlmmMod? changedMod = null;
                 if (sender is ComboBox { DataContext: DlmmMod mod })
                 {
-                    if (!string.IsNullOrWhiteSpace(mod.Hero) && !string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase))
+                    changedMod = mod;
+                    var hero = NormalizeHero(mod.Hero);
+                    if (!string.IsNullOrWhiteSpace(hero) && !string.Equals(hero, "unknown", StringComparison.OrdinalIgnoreCase))
+                    {
+                        mod.Hero = hero;
                         mod.Folder = "";
+                        mod.IncludedInRandomizer = true;
+                    }
+                    else
+                    {
+                        mod.Hero = "unknown";
+                        mod.IncludedInRandomizer = false;
+                    }
                 }
 
-                RefreshFolderOptions();
-                AutoSavePreferences();
+                BindGroups();
+                AutoSavePreferences(mod: changedMod);
             });
+        }
+
+        private void HeroSection_Expanded(object sender, RoutedEventArgs e)
+        {
+            if (_isBindingGroups || sender is not Expander { DataContext: HeroModGroup selectedGroup })
+                return;
+
+            _expandedSectionKey = selectedGroup.Hero;
+
+            if (HeroGroupsList.ItemsSource is not IEnumerable<HeroModGroup> groups)
+                return;
+
+            foreach (var group in groups)
+            {
+                group.IsExpanded = string.Equals(group.Hero, selectedGroup.Hero, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        private void HeroSection_Collapsed(object sender, RoutedEventArgs e)
+        {
+            if (_isBindingGroups || sender is not Expander { DataContext: HeroModGroup selectedGroup })
+                return;
+
+            if (string.Equals(_expandedSectionKey, selectedGroup.Hero, StringComparison.OrdinalIgnoreCase))
+                _expandedSectionKey = "";
         }
 
         private void ModPreference_Changed(object sender, RoutedEventArgs e)
@@ -581,21 +623,45 @@ namespace DL_Skin_Randomiser
             if (!IsLoaded || _isBindingGroups || _isLoading)
                 return;
 
-            ApplyFolderExclusions();
+            if (sender is FrameworkElement { DataContext: DlmmMod mod })
+            {
+                ApplyNonRandomizerExclusions(mod);
+                AutoSavePreferences(mod: mod);
+                return;
+            }
+
+            ApplyNonRandomizerExclusions();
             AutoSavePreferences();
         }
 
-        private void ApplyFolderExclusions()
+        private void ApplyNonRandomizerExclusions(DlmmMod? changedMod = null)
         {
-            foreach (var mod in _mods.Where(mod => !string.IsNullOrWhiteSpace(mod.Folder)))
+            if (changedMod is not null)
             {
-                mod.IncludedInRandomizer = false;
+                ApplyNonRandomizerExclusion(changedMod);
+                return;
+            }
+
+            foreach (var mod in _mods)
+            {
+                ApplyNonRandomizerExclusion(mod);
             }
         }
 
-        private void AutoSavePreferences(bool showStatus = true)
+        private static void ApplyNonRandomizerExclusion(DlmmMod mod)
         {
-            UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
+            if (!string.IsNullOrWhiteSpace(mod.Folder) || NormalizeHero(mod.Hero) == "unknown")
+                mod.IncludedInRandomizer = false;
+        }
+
+        private void AutoSavePreferences(bool showStatus = true, DlmmMod? mod = null)
+        {
+            ApplyNonRandomizerExclusions(mod);
+            if (mod is not null)
+                UserPreferenceService.SaveMod(_preferencesPath, mod, _statePath, _selectedProfileId);
+            else
+                UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
+
             _preferences = UserPreferenceService.Load(_preferencesPath);
 
             if (showStatus)
@@ -635,11 +701,41 @@ namespace DL_Skin_Randomiser
                 ?? "selected profile";
         }
 
+        private void ValidateApplyInputs(bool requireGamePath)
+        {
+            if (string.IsNullOrWhiteSpace(_selectedProfileId))
+                throw new InvalidOperationException("No DLMM profile is selected.");
+
+            if (string.IsNullOrWhiteSpace(_statePath))
+                throw new InvalidOperationException("No DLMM state file is selected.");
+
+            if (!File.Exists(_statePath))
+                throw new InvalidOperationException($"DLMM state file was not found: {_statePath}");
+
+            if (_mods.Count == 0)
+                throw new InvalidOperationException("No mods are loaded for the selected profile.");
+
+            if (!requireGamePath)
+                return;
+
+            if (string.IsNullOrWhiteSpace(_gamePath) || !Directory.Exists(_gamePath))
+                throw new InvalidOperationException("Deadlock game path was not found in DLMM state, so the app cannot launch or stage game files.");
+        }
+
         private string BuildApplyStatus(ApplyResult result)
         {
-            var status = $"Applied {result.WrittenCount} mods to {GetSelectedProfileName()}. Enabled: {result.EnabledCount}. Staged +{result.StagedEnabledCount}/-{result.StagedDisabledCount}. Backup created.";
+            var status = $"Game files updated for {GetSelectedProfileName()}. In use: {result.EnabledCount}. Staged +{result.StagedEnabledCount}/-{result.StagedDisabledCount}.";
+            if (result.ForcedDisabledCount > 0)
+                status += $" Disabled {result.ForcedDisabledCount} duplicate hero picks.";
+            if (result.StagingSkippedCount > 0)
+                status += $" {result.StagingSkippedCount} mods had no game files to stage.";
+            if (!string.IsNullOrWhiteSpace(result.AddonsBackupPath))
+                status += " Backup created.";
+
+            status += " DLMM state was written too.";
+
             return IsDlmmRunning()
-                ? $"{status} DLMM is open, so its window may not refresh until restart."
+                ? $"{status} DLMM is open, so its window may still show the old selection until restart."
                 : status;
         }
 
@@ -654,6 +750,22 @@ namespace DL_Skin_Randomiser
         private ProfilePreferences GetCurrentProfilePreferences()
         {
             return UserPreferenceService.GetProfilePreferences(_preferences, _selectedProfileId, useLegacyFallback: true);
+        }
+
+        private bool ShouldExpandGroup(string groupKey)
+        {
+            if (string.IsNullOrWhiteSpace(_expandedSectionKey))
+                return false;
+
+            return string.Equals(groupKey, _expandedSectionKey, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int GetSectionSortRank(HeroModGroup group)
+        {
+            if (string.Equals(group.Hero, "unknown", StringComparison.OrdinalIgnoreCase))
+                return 2;
+
+            return group.IsFolder ? 1 : 0;
         }
 
         private void MainScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -692,14 +804,6 @@ namespace DL_Skin_Randomiser
                 return true;
 
             return NormalizeFolder(mod.Folder).Contains(filter, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool StatusMatchesFilter(DlmmMod mod, string filter)
-        {
-            if (string.IsNullOrWhiteSpace(filter))
-                return true;
-
-            return NormalizeStatus(mod.Status).Contains(filter, StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool SearchMatchesFilter(DlmmMod mod, string searchText)
@@ -763,15 +867,19 @@ namespace DL_Skin_Randomiser
                 : normalized;
         }
 
-        private static string NormalizeStatus(string status)
+        private string GetFolderDisplayName(string folderKey)
         {
-            if (string.IsNullOrWhiteSpace(status))
-                return "";
+            return FolderOptions
+                .FirstOrDefault(option => string.Equals(option.Key, HeroDisplayService.ToKey(folderKey), StringComparison.OrdinalIgnoreCase))
+                ?.Name
+                ?? folderKey;
+        }
 
-            var normalized = status.Trim().ToLowerInvariant();
-            return normalized == AllStatusesFilter.ToLowerInvariant()
-                ? ""
-                : normalized;
+        private static string BuildOptionSignature(IEnumerable<CharacterOption> options)
+        {
+            return string.Join(
+                "|",
+                options.Select(option => $"{option.Key}\u001f{option.Name}"));
         }
     }
 }

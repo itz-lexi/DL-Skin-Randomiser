@@ -32,6 +32,10 @@ namespace DL_Skin_Randomiser.Services
         public static void Apply(List<DlmmMod> mods, UserPreferences preferences, string profileId)
         {
             var profilePreferences = GetProfilePreferences(preferences, profileId, useLegacyFallback: true);
+            var customFolderLookup = profilePreferences.CustomFolders
+                .Where(folder => !string.IsNullOrWhiteSpace(folder))
+                .GroupBy(HeroDisplayService.ToKey, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
 
             foreach (var mod in mods)
             {
@@ -46,9 +50,15 @@ namespace DL_Skin_Randomiser.Services
                     mod.Hero = preferredHero;
 
                 mod.Folder = preference.Folder.Trim().ToLowerInvariant();
+                if (customFolderLookup.TryGetValue(mod.Folder, out var displayFolder))
+                    mod.Folder = displayFolder;
+
                 mod.IncludedInRandomizer = preference.IncludedInRandomizer;
-                if (!string.IsNullOrWhiteSpace(mod.Folder))
+                if (!string.IsNullOrWhiteSpace(mod.Folder)
+                    || string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase))
+                {
                     mod.IncludedInRandomizer = false;
+                }
             }
         }
 
@@ -63,17 +73,23 @@ namespace DL_Skin_Randomiser.Services
 
             foreach (var mod in mods.Where(mod => !string.IsNullOrWhiteSpace(mod.RemoteId)))
             {
-                var folder = mod.Folder.Trim().ToLowerInvariant();
-                var includedInRandomizer = mod.IncludedInRandomizer && string.IsNullOrWhiteSpace(folder);
-
-                profilePreferences.Mods[mod.RemoteId] = new ModPreference
-                {
-                    RemoteId = mod.RemoteId,
-                    Hero = mod.Hero.Trim().ToLowerInvariant(),
-                    Folder = folder,
-                    IncludedInRandomizer = includedInRandomizer
-                };
+                profilePreferences.Mods[mod.RemoteId] = BuildModPreference(mod);
             }
+
+            SavePreferences(path, existingPreferences);
+        }
+
+        public static void SaveMod(string path, DlmmMod mod, string statePath, string profileId)
+        {
+            if (string.IsNullOrWhiteSpace(mod.RemoteId))
+                return;
+
+            var existingPreferences = Load(path);
+            existingPreferences.StatePath = statePath;
+            existingPreferences.SelectedProfileId = profileId;
+
+            var profilePreferences = GetOrCreateProfilePreferences(existingPreferences, profileId);
+            profilePreferences.Mods[mod.RemoteId] = BuildModPreference(mod);
 
             SavePreferences(path, existingPreferences);
         }
@@ -108,18 +124,23 @@ namespace DL_Skin_Randomiser.Services
 
         public static void AddCustomFolder(string path, string profileId, string folderName)
         {
-            var folder = HeroDisplayService.ToKey(folderName);
-            if (string.IsNullOrWhiteSpace(folder) || folder == "unknown")
+            var displayFolder = folderName.Trim();
+            var folderKey = HeroDisplayService.ToKey(displayFolder);
+            if (string.IsNullOrWhiteSpace(folderKey) || folderKey == "unknown")
                 return;
 
             var preferences = Load(path);
             var customFolders = GetCustomFolders(preferences, profileId);
-            if (!customFolders.Contains(folder, StringComparer.OrdinalIgnoreCase))
-                customFolders.Add(folder);
+            var existingIndex = customFolders.FindIndex(folder => string.Equals(HeroDisplayService.ToKey(folder), folderKey, StringComparison.OrdinalIgnoreCase));
+            if (existingIndex >= 0)
+                customFolders[existingIndex] = displayFolder;
+            else
+                customFolders.Add(displayFolder);
 
             customFolders = customFolders
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(folder => HeroDisplayService.ToDisplayName(folder))
+                .GroupBy(HeroDisplayService.ToKey, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.Last())
+                .OrderBy(folder => folder)
                 .ToList();
 
             SetCustomFolders(preferences, profileId, customFolders);
@@ -134,13 +155,13 @@ namespace DL_Skin_Randomiser.Services
 
         public static void RemoveCustomFolder(string path, string profileId, string folderName)
         {
-            var folder = HeroDisplayService.ToKey(folderName);
-            if (string.IsNullOrWhiteSpace(folder))
+            var folderKey = HeroDisplayService.ToKey(folderName);
+            if (string.IsNullOrWhiteSpace(folderKey))
                 return;
 
             var preferences = Load(path);
             var customFolders = GetCustomFolders(preferences, profileId)
-                .Where(existingFolder => !string.Equals(existingFolder, folder, StringComparison.OrdinalIgnoreCase))
+                .Where(existingFolder => !string.Equals(HeroDisplayService.ToKey(existingFolder), folderKey, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             SetCustomFolders(preferences, profileId, customFolders);
@@ -222,6 +243,23 @@ namespace DL_Skin_Randomiser.Services
                 CustomFolders = preferences.CustomFolders,
                 LastSessionLoadout = preferences.LastSessionLoadout,
                 Mods = preferences.Mods
+            };
+        }
+
+        private static ModPreference BuildModPreference(DlmmMod mod)
+        {
+            var folder = mod.Folder.Trim().ToLowerInvariant();
+            var hero = mod.Hero.Trim().ToLowerInvariant();
+            var includedInRandomizer = mod.IncludedInRandomizer
+                && string.IsNullOrWhiteSpace(folder)
+                && !string.Equals(hero, "unknown", StringComparison.OrdinalIgnoreCase);
+
+            return new ModPreference
+            {
+                RemoteId = mod.RemoteId,
+                Hero = hero,
+                Folder = folder,
+                IncludedInRandomizer = includedInRandomizer
             };
         }
 

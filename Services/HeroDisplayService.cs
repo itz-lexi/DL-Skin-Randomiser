@@ -6,7 +6,8 @@ namespace DL_Skin_Randomiser.Services
     {
         private static readonly Dictionary<string, string> DisplayNames = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["mo & krill"] = "Mo & Krill"
+            ["mo & krill"] = "Mo & Krill",
+            ["unknown"] = "Unsorted"
         };
 
         public static string ToKey(string value)

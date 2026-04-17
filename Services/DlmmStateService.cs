@@ -64,9 +64,6 @@ namespace DL_Skin_Randomiser.Services
                 });
             }
 
-            Console.WriteLine($"Loaded {result.Mods.Count} mods");
-            Console.WriteLine($"Enabled: {result.Mods.Count(mod => mod.Enabled)}");
-
             return result;
         }
 
