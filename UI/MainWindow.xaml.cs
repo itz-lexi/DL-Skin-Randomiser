@@ -37,6 +37,14 @@ namespace DL_Skin_Randomiser
         public List<CharacterOption> FolderOptions { get; private set; } = [];
         public List<CharacterOption> ProfileOptions { get; private set; } = [];
 
+        private enum NoticeKind
+        {
+            Info,
+            Success,
+            Warning,
+            Error
+        }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -51,7 +59,7 @@ namespace DL_Skin_Randomiser
 
             if (string.IsNullOrWhiteSpace(_statePath))
             {
-                StatusText.Text = "Select DLMM state.json to load mods.";
+                SetNotice("Setup needed", "Select DLMM state.json to load mods.", NoticeKind.Warning, showBanner: true);
                 StatePathText.Text = "";
                 _isLoading = false;
                 return;
@@ -59,7 +67,7 @@ namespace DL_Skin_Randomiser
 
             if (!File.Exists(_statePath))
             {
-                StatusText.Text = $"DLMM state not found: {_statePath}";
+                SetNotice("State missing", $"DLMM state not found: {_statePath}", NoticeKind.Error, showBanner: true);
                 StatePathText.Text = _statePath;
                 _isLoading = false;
                 return;
@@ -89,7 +97,7 @@ namespace DL_Skin_Randomiser
                 Console.WriteLine($"{mod.Name} - {mod.Enabled}");
             }
 
-            StatusText.Text = $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. Enabled: {_mods.Count(mod => mod.Enabled)}";
+            SetNotice("Profile loaded", $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. In use: {_mods.Count(mod => mod.Enabled)}", NoticeKind.Success);
             StatePathText.Text = _statePath;
             _isLoading = false;
         }
@@ -97,7 +105,7 @@ namespace DL_Skin_Randomiser
         private void RandomiseButton_Click(object sender, RoutedEventArgs e)
         {
             RandomiseCurrentLoadout();
-            StatusText.Text = $"Randomised {_currentLoadout.Count} hero picks.";
+            SetNotice("Loadout ready", $"Randomised {_currentLoadout.Count} hero picks. Apply when you are happy with them.", NoticeKind.Success, showBanner: true);
         }
 
         private void ApplyButton_Click(object sender, RoutedEventArgs e)
@@ -106,13 +114,17 @@ namespace DL_Skin_Randomiser
             {
                 UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
                 var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
-                StatusText.Text = result.WrittenCount == 0
-                    ? $"No mods were written to {GetSelectedProfileName()} because this profile has no visible mod entries."
-                    : BuildApplyStatus(result);
+                if (result.WrittenCount == 0)
+                {
+                    SetNotice("Nothing applied", $"No mods were written to {GetSelectedProfileName()} because this profile has no visible mod entries.", NoticeKind.Warning, showBanner: true);
+                    return;
+                }
+
+                SetNotice("Apply complete", BuildApplyStatus(result), NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
             {
-                StatusText.Text = $"Apply failed for {GetSelectedProfileName()}: {ex.Message}";
+                SetNotice("Apply failed", $"Apply failed for {GetSelectedProfileName()}: {ex.Message}", NoticeKind.Error, showBanner: true);
             }
         }
 
@@ -124,11 +136,11 @@ namespace DL_Skin_Randomiser
                 UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
                 var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
                 GameLaunchService.Launch(_gamePath);
-                StatusText.Text = $"Randomised {_currentLoadout.Count} picks, applied {result.WrittenCount} mods to {GetSelectedProfileName()}, and launched Deadlock.";
+                SetNotice("Deadlock launched", $"Randomised {_currentLoadout.Count} picks, applied {result.WrittenCount} mods to {GetSelectedProfileName()}, and launched Deadlock.", NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
             {
-                StatusText.Text = $"Randomise & Play failed: {ex.Message}";
+                SetNotice("Launch failed", $"Randomise & Play failed: {ex.Message}", NoticeKind.Error, showBanner: true);
             }
         }
 
@@ -160,7 +172,7 @@ namespace DL_Skin_Randomiser
             NewFolderTextBox.Text = "";
             RefreshFolderOptions();
             AutoSavePreferences(showStatus: false);
-            StatusText.Text = $"Added folder {HeroDisplayService.ToDisplayName(folderName)}.";
+            SetNotice("Folder added", $"Added folder {HeroDisplayService.ToDisplayName(folderName)}.", NoticeKind.Success);
         }
 
         private void RemoveFolderButton_Click(object sender, RoutedEventArgs e)
@@ -168,7 +180,7 @@ namespace DL_Skin_Randomiser
             var folder = NormalizeFolder(FolderFilterBox.Text);
             if (string.IsNullOrWhiteSpace(folder))
             {
-                StatusText.Text = "Choose a folder to remove.";
+                SetNotice("Choose a folder", "Choose a folder to remove.", NoticeKind.Warning, showBanner: true);
                 return;
             }
 
@@ -185,7 +197,7 @@ namespace DL_Skin_Randomiser
             RefreshCharacterOptions();
             BindGroups();
             AutoSavePreferences(showStatus: false);
-            StatusText.Text = $"Removed folder {HeroDisplayService.ToDisplayName(folder)}.";
+            SetNotice("Folder removed", $"Removed folder {HeroDisplayService.ToDisplayName(folder)}.", NoticeKind.Success, showBanner: true);
         }
 
         private string EnsureStatePath(UserPreferences preferences)
@@ -208,9 +220,13 @@ namespace DL_Skin_Randomiser
             if (!forcePrompt && File.Exists(suggestedPath))
                 return suggestedPath;
 
-            StatusText.Text = File.Exists(suggestedPath)
-                ? $"Confirm DLMM state path: {suggestedPath}"
-                : "Select DLMM state.json to finish setup.";
+            SetNotice(
+                "DLMM state",
+                File.Exists(suggestedPath)
+                    ? $"Confirm DLMM state path: {suggestedPath}"
+                    : "Select DLMM state.json to finish setup.",
+                NoticeKind.Info,
+                showBanner: true);
 
             var dialog = new OpenFileDialog
             {
@@ -505,7 +521,7 @@ namespace DL_Skin_Randomiser
 
             _selectedProfileId = selectedProfileId;
             UserPreferenceService.SaveSelectedProfile(_preferencesPath, _selectedProfileId);
-            StatusText.Text = $"Loading {GetSelectedProfileName()}...";
+            SetNotice("Loading profile", $"Loading {GetSelectedProfileName()}...", NoticeKind.Info);
             LoadMods();
         }
 
@@ -583,7 +599,32 @@ namespace DL_Skin_Randomiser
             _preferences = UserPreferenceService.Load(_preferencesPath);
 
             if (showStatus)
-                StatusText.Text = "Preferences saved.";
+                SetNotice("Saved", "Preferences saved.", NoticeKind.Success);
+        }
+
+        private void SetNotice(string title, string message, NoticeKind kind = NoticeKind.Info, bool showBanner = false)
+        {
+            NoticeTitleText.Text = title;
+            StatusText.Text = message;
+            NoticeBannerText.Text = message;
+
+            var (dotColor, bannerBackground, bannerBorder) = kind switch
+            {
+                NoticeKind.Success => ("#91D18B", "#203125", "#5EA86A"),
+                NoticeKind.Warning => ("#D5B56E", "#332C1C", "#8B7334"),
+                NoticeKind.Error => ("#F07C7C", "#341F20", "#A64949"),
+                _ => ("#8FB9F2", "#1D2835", "#496D9C")
+            };
+
+            TrayStatusDot.Fill = BrushFrom(dotColor);
+            NoticeBanner.Background = BrushFrom(bannerBackground);
+            NoticeBanner.BorderBrush = BrushFrom(bannerBorder);
+            NoticeBanner.Visibility = showBanner ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private static SolidColorBrush BrushFrom(string hex)
+        {
+            return (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
         }
 
         private string GetSelectedProfileName()
