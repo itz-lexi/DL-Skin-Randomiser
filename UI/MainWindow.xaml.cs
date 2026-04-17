@@ -21,6 +21,7 @@ namespace DL_Skin_Randomiser
     {
         private const string AllCharactersFilter = "All characters";
         private const string AllFoldersFilter = "All folders";
+        private static readonly TimeSpan NoticeTickInterval = TimeSpan.FromMilliseconds(100);
 
         private readonly string _preferencesPath = UserPreferenceService.DefaultPreferencesPath;
         private string _statePath = "";
@@ -32,8 +33,12 @@ namespace DL_Skin_Randomiser
         private string _folderOptionsSignature = "";
         private string _characterOptionsSignature = "";
         private UserPreferences _preferences = new();
+        private readonly System.Windows.Threading.DispatcherTimer _noticeTimer = new();
         private bool _isBindingGroups;
         private bool _isLoading;
+        private bool _hasUserChangedSectionExpansion;
+        private DateTime _noticeExpiresAt;
+        private TimeSpan _noticeDuration = TimeSpan.Zero;
 
         public List<CharacterOption> CharacterOptions { get; private set; } = [];
         public List<CharacterOption> FolderOptions { get; private set; } = [];
@@ -50,12 +55,15 @@ namespace DL_Skin_Randomiser
         public MainWindow()
         {
             InitializeComponent();
+            _noticeTimer.Interval = NoticeTickInterval;
+            _noticeTimer.Tick += NoticeTimer_Tick;
             Loaded += (_, _) => LoadMods();
         }
 
         private void LoadMods()
         {
             _isLoading = true;
+            _hasUserChangedSectionExpansion = false;
             _preferences = UserPreferenceService.Load(_preferencesPath);
             _statePath = EnsureStatePath(_preferences);
 
@@ -200,6 +208,54 @@ namespace DL_Skin_Randomiser
             BindGroups();
             AutoSavePreferences(showStatus: false);
             SetNotice("Folder removed", $"Removed folder {GetFolderDisplayName(folder)}.", NoticeKind.Success, showBanner: true);
+        }
+
+        private void EditFolderBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded || _isLoading)
+                return;
+
+            var folder = EditFolderBox.SelectedValue as string ?? "";
+            EditFolderNameTextBox.Text = string.IsNullOrWhiteSpace(folder)
+                ? ""
+                : GetFolderDisplayName(folder);
+        }
+
+        private void RenameFolderButton_Click(object sender, RoutedEventArgs e)
+        {
+            var oldFolder = EditFolderBox.SelectedValue as string ?? "";
+            var newFolderName = EditFolderNameTextBox.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(oldFolder))
+            {
+                SetNotice("Choose a folder", "Choose a folder to rename.", NoticeKind.Warning, showBanner: true);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(newFolderName))
+            {
+                SetNotice("Name needed", "Type the new folder name first.", NoticeKind.Warning, showBanner: true);
+                return;
+            }
+
+            var oldDisplayName = GetFolderDisplayName(oldFolder);
+            UserPreferenceService.RenameCustomFolder(_preferencesPath, _selectedProfileId, oldFolder, newFolderName);
+
+            foreach (var mod in _mods.Where(mod => string.Equals(NormalizeFolder(mod.Folder), oldFolder, StringComparison.OrdinalIgnoreCase)))
+            {
+                mod.Folder = newFolderName;
+                mod.IncludedInRandomizer = false;
+            }
+
+            _preferences = UserPreferenceService.Load(_preferencesPath);
+            RefreshFolderOptions();
+            EditFolderBox.SelectedValue = HeroDisplayService.ToKey(newFolderName);
+            FolderFilterBox.Text = string.Equals(NormalizeFolder(FolderFilterBox.Text), oldFolder, StringComparison.OrdinalIgnoreCase)
+                ? HeroDisplayService.ToFolderDisplayName(newFolderName)
+                : FolderFilterBox.Text;
+            BindGroups();
+            AutoSavePreferences(showStatus: false);
+            SetNotice("Folder renamed", $"Renamed {oldDisplayName} to {newFolderName}.", NoticeKind.Success, showBanner: true);
         }
 
         private string EnsureStatePath(UserPreferences preferences)
@@ -370,7 +426,7 @@ namespace DL_Skin_Randomiser
                 ..folderKeys.Select(folder => new CharacterOption
                 {
                     Key = HeroDisplayService.ToKey(folder),
-                    Name = folder
+                    Name = HeroDisplayService.ToFolderDisplayName(folder)
                 })
             ];
 
@@ -392,10 +448,16 @@ namespace DL_Skin_Randomiser
                 FolderFilterBox.Text = selectedFilter;
 
             var selectedRemoveFolder = RemoveFolderBox.SelectedValue as string;
+            var selectedEditFolder = EditFolderBox.SelectedValue as string;
             RemoveFolderBox.ItemsSource = FolderOptions
                 .Where(option => !string.IsNullOrWhiteSpace(option.Key))
                 .ToList();
             RemoveFolderBox.SelectedValue = selectedRemoveFolder;
+
+            EditFolderBox.ItemsSource = FolderOptions
+                .Where(option => !string.IsNullOrWhiteSpace(option.Key))
+                .ToList();
+            EditFolderBox.SelectedValue = selectedEditFolder;
         }
 
         private void RefreshCharacterOptions()
@@ -598,6 +660,7 @@ namespace DL_Skin_Randomiser
             if (_isBindingGroups || sender is not Expander { DataContext: HeroModGroup selectedGroup })
                 return;
 
+            _hasUserChangedSectionExpansion = true;
             _expandedSectionKey = selectedGroup.Hero;
 
             if (HeroGroupsList.ItemsSource is not IEnumerable<HeroModGroup> groups)
@@ -614,6 +677,7 @@ namespace DL_Skin_Randomiser
             if (_isBindingGroups || sender is not Expander { DataContext: HeroModGroup selectedGroup })
                 return;
 
+            _hasUserChangedSectionExpansion = true;
             if (string.Equals(_expandedSectionKey, selectedGroup.Hero, StringComparison.OrdinalIgnoreCase))
                 _expandedSectionKey = "";
         }
@@ -668,6 +732,29 @@ namespace DL_Skin_Randomiser
                 SetNotice("Saved", "Preferences saved.", NoticeKind.Success);
         }
 
+        private void DismissNoticeButton_Click(object sender, RoutedEventArgs e)
+        {
+            HideNoticeBanner();
+        }
+
+        private void NoticeTimer_Tick(object? sender, EventArgs e)
+        {
+            if (_noticeDuration <= TimeSpan.Zero)
+            {
+                HideNoticeBanner();
+                return;
+            }
+
+            var remaining = _noticeExpiresAt - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+            {
+                HideNoticeBanner();
+                return;
+            }
+
+            NoticeExpiryBar.Value = Math.Max(0, Math.Min(1, remaining.TotalMilliseconds / _noticeDuration.TotalMilliseconds));
+        }
+
         private void SetNotice(string title, string message, NoticeKind kind = NoticeKind.Info, bool showBanner = false)
         {
             NoticeTitleText.Text = title;
@@ -685,7 +772,35 @@ namespace DL_Skin_Randomiser
             TrayStatusDot.Fill = BrushFrom(dotColor);
             NoticeBanner.Background = BrushFrom(bannerBackground);
             NoticeBanner.BorderBrush = BrushFrom(bannerBorder);
-            NoticeBanner.Visibility = showBanner ? Visibility.Visible : Visibility.Collapsed;
+            NoticeExpiryBar.Foreground = BrushFrom(bannerBorder);
+
+            if (showBanner)
+                ShowNoticeBanner(kind);
+            else
+                HideNoticeBanner();
+        }
+
+        private void ShowNoticeBanner(NoticeKind kind)
+        {
+            _noticeDuration = kind switch
+            {
+                NoticeKind.Error => TimeSpan.FromSeconds(12),
+                NoticeKind.Warning => TimeSpan.FromSeconds(9),
+                _ => TimeSpan.FromSeconds(6)
+            };
+
+            _noticeExpiresAt = DateTime.UtcNow.Add(_noticeDuration);
+            NoticeExpiryBar.Value = 1;
+            NoticeBanner.Visibility = Visibility.Visible;
+            _noticeTimer.Stop();
+            _noticeTimer.Start();
+        }
+
+        private void HideNoticeBanner()
+        {
+            _noticeTimer.Stop();
+            NoticeExpiryBar.Value = 0;
+            NoticeBanner.Visibility = Visibility.Collapsed;
         }
 
         private static SolidColorBrush BrushFrom(string hex)
@@ -754,6 +869,9 @@ namespace DL_Skin_Randomiser
 
         private bool ShouldExpandGroup(string groupKey)
         {
+            if (!_hasUserChangedSectionExpansion)
+                return true;
+
             if (string.IsNullOrWhiteSpace(_expandedSectionKey))
                 return false;
 
@@ -872,7 +990,7 @@ namespace DL_Skin_Randomiser
             return FolderOptions
                 .FirstOrDefault(option => string.Equals(option.Key, HeroDisplayService.ToKey(folderKey), StringComparison.OrdinalIgnoreCase))
                 ?.Name
-                ?? folderKey;
+                ?? HeroDisplayService.ToFolderDisplayName(folderKey);
         }
 
         private static string BuildOptionSignature(IEnumerable<CharacterOption> options)

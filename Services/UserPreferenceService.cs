@@ -168,6 +168,47 @@ namespace DL_Skin_Randomiser.Services
             SavePreferences(path, preferences);
         }
 
+        public static void RenameCustomFolder(string path, string profileId, string oldFolderName, string newFolderName)
+        {
+            var oldFolderKey = HeroDisplayService.ToKey(oldFolderName);
+            var newDisplayFolder = newFolderName.Trim();
+            var newFolderKey = HeroDisplayService.ToKey(newDisplayFolder);
+
+            if (string.IsNullOrWhiteSpace(oldFolderKey)
+                || string.IsNullOrWhiteSpace(newFolderKey)
+                || newFolderKey == "unknown")
+            {
+                return;
+            }
+
+            var preferences = Load(path);
+            var customFolders = GetCustomFolders(preferences, profileId)
+                .Where(existingFolder => !string.Equals(HeroDisplayService.ToKey(existingFolder), oldFolderKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var existingIndex = customFolders.FindIndex(existingFolder => string.Equals(HeroDisplayService.ToKey(existingFolder), newFolderKey, StringComparison.OrdinalIgnoreCase));
+            if (existingIndex >= 0)
+                customFolders[existingIndex] = newDisplayFolder;
+            else
+                customFolders.Add(newDisplayFolder);
+
+            customFolders = customFolders
+                .GroupBy(HeroDisplayService.ToKey, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.Last())
+                .OrderBy(folder => folder)
+                .ToList();
+
+            var profilePreferences = GetOrCreateProfilePreferences(preferences, profileId);
+            foreach (var modPreference in profilePreferences.Mods.Values)
+            {
+                if (string.Equals(HeroDisplayService.ToKey(modPreference.Folder), oldFolderKey, StringComparison.OrdinalIgnoreCase))
+                    modPreference.Folder = newFolderKey;
+            }
+
+            SetCustomFolders(preferences, profileId, customFolders);
+            SavePreferences(path, preferences);
+        }
+
         public static ProfilePreferences GetProfilePreferences(UserPreferences preferences, string profileId, bool useLegacyFallback = false)
         {
             if (!string.IsNullOrWhiteSpace(profileId)

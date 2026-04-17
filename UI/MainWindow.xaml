@@ -124,6 +124,14 @@
         <Style TargetType="Thumb">
             <Setter Property="Background" Value="#4B5358" />
         </Style>
+        <Style x:Key="NoticeProgress" TargetType="ProgressBar">
+            <Setter Property="Height" Value="3" />
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="1" />
+            <Setter Property="Background" Value="#151819" />
+            <Setter Property="Foreground" Value="#D9F3A7" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
     </Window.Resources>
     <DockPanel Margin="14">
         <Border DockPanel.Dock="Top"
@@ -215,29 +223,51 @@
                                        FontWeight="SemiBold" />
                         </Expander.Header>
                         <Border Style="{StaticResource TopPanel}" Margin="0,8,0,0" MinWidth="650">
-                            <WrapPanel>
-                                <TextBox x:Name="NewFolderTextBox"
-                                         Width="170"
-                                         Margin="0,0,8,8"
-                                         VerticalContentAlignment="Center" />
-                                <Button x:Name="AddFolderButton"
-                                        Width="100"
-                                        Click="AddFolderButton_Click"
-                                        Content="Add folder" />
-                                <ComboBox x:Name="RemoveFolderBox"
-                                          Width="150"
-                                          Margin="0,0,8,8"
-                                          DisplayMemberPath="Name"
-                                          SelectedValuePath="Key" />
-                                <Button x:Name="RemoveFolderButton"
-                                        Width="118"
-                                        Click="RemoveFolderButton_Click"
-                                        Content="Remove" />
-                                <Button x:Name="BrowseDlmmButton"
-                                        Width="110"
-                                        Click="BrowseDlmmButton_Click"
-                                        Content="DLMM state" />
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <TextBox x:Name="NewFolderTextBox"
+                                             Width="170"
+                                             Margin="0,0,8,8"
+                                             VerticalContentAlignment="Center" />
+                                    <Button x:Name="AddFolderButton"
+                                            Width="100"
+                                            Click="AddFolderButton_Click"
+                                            Content="Add folder" />
+                                    <ComboBox x:Name="RemoveFolderBox"
+                                              Width="150"
+                                              Margin="0,0,8,8"
+                                              DisplayMemberPath="Name"
+                                              SelectedValuePath="Key" />
+                                    <Button x:Name="RemoveFolderButton"
+                                            Width="118"
+                                            Click="RemoveFolderButton_Click"
+                                            Content="Remove" />
+                                    <Button x:Name="BrowseDlmmButton"
+                                            Width="110"
+                                            Click="BrowseDlmmButton_Click"
+                                            Content="DLMM state" />
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <TextBlock Margin="0,0,8,8"
+                                               VerticalAlignment="Center"
+                                               Foreground="#AEB7BA"
+                                               Text="Edit folder" />
+                                    <ComboBox x:Name="EditFolderBox"
+                                              Width="150"
+                                              Margin="0,0,8,8"
+                                              DisplayMemberPath="Name"
+                                              SelectedValuePath="Key"
+                                              SelectionChanged="EditFolderBox_SelectionChanged" />
+                                    <TextBox x:Name="EditFolderNameTextBox"
+                                             Width="170"
+                                             Margin="0,0,8,8"
+                                             VerticalContentAlignment="Center" />
+                                    <Button x:Name="RenameFolderButton"
+                                            Width="118"
+                                            Click="RenameFolderButton_Click"
+                                            Content="Rename" />
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
                     </Expander>
                 </WrapPanel>
@@ -350,14 +380,39 @@
                 BorderBrush="#5EA86A"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="14,10"
+                Padding="14,10,10,8"
                 Margin="0,0,0,12"
                 Visibility="Collapsed">
-            <TextBlock x:Name="NoticeBannerText"
-                       Foreground="#F5FFF2"
-                       FontSize="14"
-                       FontWeight="SemiBold"
-                       TextWrapping="Wrap" />
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="NoticeBannerText"
+                           Foreground="#F5FFF2"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center" />
+                <Button x:Name="DismissNoticeButton"
+                        Grid.Column="1"
+                        Width="28"
+                        MinHeight="24"
+                        Margin="12,0,0,0"
+                        Padding="0"
+                        Content="x"
+                        Click="DismissNoticeButton_Click" />
+                <ProgressBar x:Name="NoticeExpiryBar"
+                             Grid.Row="1"
+                             Grid.ColumnSpan="2"
+                             Style="{StaticResource NoticeProgress}"
+                             Value="1"
+                             Margin="0,9,4,0" />
+            </Grid>
         </Border>
 
         <Expander DockPanel.Dock="Top"

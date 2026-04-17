@@ -29,5 +29,21 @@ namespace DL_Skin_Randomiser.Services
 
             return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(normalized);
         }
+
+        public static string ToFolderDisplayName(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "";
+
+            var trimmed = value.Trim();
+            if (trimmed.Any(char.IsUpper))
+                return trimmed;
+
+            var normalized = ToKey(trimmed);
+            if (!normalized.Contains(' ') && normalized.Length <= 4)
+                return normalized.ToUpperInvariant();
+
+            return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(normalized);
+        }
     }
 }
