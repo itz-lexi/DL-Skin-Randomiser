@@ -18,17 +18,25 @@ namespace DL_Skin_Randomiser.Services
             }
 
             var selectedRemoteIds = candidateMods
-                .Where(mod => mod.IncludedInRandomizer && mod.Hero != "unknown")
+                .Where(IsRandomizerCandidate)
                 .GroupBy(mod => mod.Hero)
                 .Select(group => group.ElementAt(Random.Next(group.Count())).RemoteId)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             foreach (var mod in candidateMods.Where(mod => mod.IncludedInRandomizer && mod.Hero != "unknown"))
             {
-                mod.Enabled = selectedRemoteIds.Contains(mod.RemoteId);
+                mod.Enabled = IsRandomizerCandidate(mod) && selectedRemoteIds.Contains(mod.RemoteId);
             }
 
             return candidateMods;
+        }
+
+        private static bool IsRandomizerCandidate(DlmmMod mod)
+        {
+            return mod.IncludedInRandomizer
+                && mod.Hero != "unknown"
+                && string.IsNullOrWhiteSpace(mod.Folder)
+                && mod.InstalledVpks.Count > 0;
         }
 
         private static string NormalizeHero(string hero)

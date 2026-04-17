@@ -123,6 +123,7 @@ namespace DL_Skin_Randomiser
                 "Profile loaded",
                 BuildLoadedStatus(_addonsState),
                 NoticeKind.Success);
+            LogDiagnosticSnapshot("Profile loaded", BuildLoadedStatus(_addonsState));
             StatePathText.Text = _statePath;
             _isLoading = false;
         }
@@ -136,6 +137,7 @@ namespace DL_Skin_Randomiser
                 return;
             }
 
+            LogDiagnosticSnapshot("Randomise", $"Rerolled {_currentLoadout.Count} hero picks.");
             SetNotice("Reroll ready", $"Rerolled {_currentLoadout.Count} hero picks. Apply or launch when you are happy with them.", NoticeKind.Success, showBanner: true);
         }
 
@@ -152,10 +154,13 @@ namespace DL_Skin_Randomiser
                     return;
                 }
 
-                SetNotice("Apply complete", BuildApplyStatus(result), NoticeKind.Success, showBanner: true);
+                var applyStatus = BuildApplyStatus(result);
+                LogDiagnosticSnapshot("Apply complete", applyStatus);
+                SetNotice("Apply complete", applyStatus, NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
             {
+                LogDiagnosticSnapshot("Apply failed", $"Apply failed for {GetSelectedProfileName()}: {ex.Message}", ex);
                 SetNotice("Apply failed", $"Apply failed for {GetSelectedProfileName()}: {ex.Message}", NoticeKind.Error, showBanner: true);
             }
         }
@@ -172,6 +177,7 @@ namespace DL_Skin_Randomiser
                 var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
                 if (result.RequiresDlmmApply)
                 {
+                    LogDiagnosticSnapshot("Randomise & Play pending DLMM apply", $"Randomised {_currentLoadout.Count} picks and updated {GetSelectedProfileName()}. DLMM apply/rebuild is required.");
                     SetNotice(
                         "DLMM apply needed",
                         $"Randomised {_currentLoadout.Count} picks and updated {GetSelectedProfileName()}. Apply/rebuild in DLMM before launching Deadlock.",
@@ -181,10 +187,12 @@ namespace DL_Skin_Randomiser
                 }
 
                 GameLaunchService.Launch(_gamePath);
+                LogDiagnosticSnapshot("Randomise & Play launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock.");
                 SetNotice("Deadlock launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock. Use Reroll before launch when you want a different set.", NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
             {
+                LogDiagnosticSnapshot("Randomise & Play failed", $"Randomise & Play failed: {ex.Message}", ex);
                 SetNotice("Launch failed", $"Randomise & Play failed: {ex.Message}", NoticeKind.Error, showBanner: true);
             }
         }
@@ -214,10 +222,12 @@ namespace DL_Skin_Randomiser
                 var backupPath = UserPreferenceService.Backup(_preferencesPath);
                 RefreshBackupOptions();
                 BackupBox.SelectedValue = backupPath;
+                LogDiagnosticSnapshot("Backup created", $"Saved app setup backup: {backupPath}");
                 SetNotice("Backup created", $"Saved app setup backup: {backupPath}", NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
             {
+                LogDiagnosticSnapshot("Backup failed", $"Could not back up app setup: {ex.Message}", ex);
                 SetNotice("Backup failed", $"Could not back up app setup: {ex.Message}", NoticeKind.Error, showBanner: true);
             }
         }
@@ -604,6 +614,21 @@ namespace DL_Skin_Randomiser
             AddonsDiagnosticsList.ItemsSource = _addonsState.Diagnostics;
             AddonsDiagnosticsSummaryText.Text =
                 $"{_addonsState.LiveSlotCount} live VPKs • {_addonsState.LogMatchedModCount} log matched • {_addonsState.HashMatchedModCount} hash matched • {_addonsState.ConfirmedModCount + _addonsState.ProfileDisambiguatedModCount} likely active • {_addonsState.SlotOnlyGuessCount} weak guesses • {_addonsState.UnmatchedLiveSlotCount} unmatched • {_addonsState.StateOnlyModCount} stale state";
+        }
+
+        private void LogDiagnosticSnapshot(string action, string message = "", Exception? exception = null)
+        {
+            AppDiagnosticLogService.WriteSnapshot(
+                action,
+                _statePath,
+                _gamePath,
+                _selectedProfileId,
+                GetSelectedProfileName(),
+                _mods,
+                _currentLoadout,
+                _addonsState,
+                message,
+                exception);
         }
 
         private void SavePresetButton_Click(object sender, RoutedEventArgs e)

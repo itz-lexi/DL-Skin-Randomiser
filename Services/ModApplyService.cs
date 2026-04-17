@@ -13,7 +13,7 @@ namespace DL_Skin_Randomiser.Services
             }
 
             var heroMods = mods
-                .Where(mod => mod.IncludedInRandomizer && mod.Hero != "unknown")
+                .Where(IsRandomizerCandidate)
                 .ToList();
 
             var forcedDisabledCount = 0;
@@ -56,6 +56,14 @@ namespace DL_Skin_Randomiser.Services
             return string.IsNullOrWhiteSpace(hero)
                 ? "unknown"
                 : hero.Trim().ToLowerInvariant();
+        }
+
+        private static bool IsRandomizerCandidate(DlmmMod mod)
+        {
+            return mod.IncludedInRandomizer
+                && mod.Hero != "unknown"
+                && string.IsNullOrWhiteSpace(mod.Folder)
+                && mod.InstalledVpks.Count > 0;
         }
     }
 }

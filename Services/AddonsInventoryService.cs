@@ -76,6 +76,14 @@ namespace DL_Skin_Randomiser.Services
                 mod.ActiveVpkSlots = [];
                 mod.IsAmbiguousInAddons = false;
                 mod.Enabled = false;
+                if (prefixedSlotsByRemoteId.TryGetValue(mod.RemoteId, out var prefixedSlots))
+                {
+                    mod.InstalledVpks = mod.InstalledVpks
+                        .Concat(prefixedSlots)
+                        .Where(slot => !string.IsNullOrWhiteSpace(slot))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
             }
 
             var unmatchedLiveSlots = new List<string>();
