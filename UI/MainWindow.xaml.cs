@@ -24,6 +24,11 @@ namespace DL_Skin_Randomiser
         private static readonly TimeSpan NoticeTickInterval = TimeSpan.FromMilliseconds(100);
 
         private readonly string _preferencesPath = UserPreferenceService.DefaultPreferencesPath;
+#if DEBUG
+        private const bool IsDevBuild = true;
+#else
+        private const bool IsDevBuild = false;
+#endif
         private string _statePath = "";
         private string _gamePath = "";
         private string _selectedProfileId = "";
@@ -61,6 +66,7 @@ namespace DL_Skin_Randomiser
         public MainWindow()
         {
             InitializeComponent();
+            ConfigureBuildVisibility();
             _noticeTimer.Interval = NoticeTickInterval;
             _noticeTimer.Tick += NoticeTimer_Tick;
             Loaded += async (_, _) =>
@@ -68,6 +74,13 @@ namespace DL_Skin_Randomiser
                 LoadMods();
                 await CheckForUpdatesAsync(showWhenCurrent: false);
             };
+        }
+
+        private void ConfigureBuildVisibility()
+        {
+            AddonsDiagnosticsExpander.Visibility = IsDevBuild
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         }
 
         private void LoadMods()
