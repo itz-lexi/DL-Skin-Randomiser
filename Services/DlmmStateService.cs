@@ -277,6 +277,7 @@ namespace DL_Skin_Randomiser.Services
 
             var backupPath = $"{path}.bak-{DateTime.Now:yyyyMMdd-HHmmss}";
             File.Copy(path, backupPath, overwrite: false);
+            PruneStateBackups(path);
             File.WriteAllText(path, outerNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
             return backupPath;
         }
@@ -324,8 +325,25 @@ namespace DL_Skin_Randomiser.Services
 
             var backupPath = $"{path}.bak-{DateTime.Now:yyyyMMdd-HHmmss}";
             File.Copy(path, backupPath, overwrite: false);
+            PruneStateBackups(path);
             File.WriteAllText(path, outerNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
             return backupPath;
+        }
+
+        private static void PruneStateBackups(string statePath)
+        {
+            var directory = Path.GetDirectoryName(statePath);
+            var fileName = Path.GetFileName(statePath);
+            if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName) || !Directory.Exists(directory))
+                return;
+
+            foreach (var oldBackup in Directory.GetFiles(directory, $"{fileName}.bak-*", SearchOption.TopDirectoryOnly)
+                         .Select(file => new FileInfo(file))
+                         .OrderByDescending(file => file.LastWriteTime)
+                         .Skip(10))
+            {
+                oldBackup.Delete();
+            }
         }
 
         private static bool RemoveEnabledMod(JsonObject profileNode, string remoteId)

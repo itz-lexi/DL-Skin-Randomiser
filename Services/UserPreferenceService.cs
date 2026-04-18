@@ -23,6 +23,12 @@ namespace DL_Skin_Randomiser.Services
                 "DL-Skin-Randomiser",
                 "Backups");
 
+        public static string DefaultUserBackupDirectory =>
+            Path.Combine(DefaultBackupDirectory, "User");
+
+        public static string DefaultAutoBackupDirectory =>
+            Path.Combine(DefaultBackupDirectory, "Auto");
+
         public static UserPreferences Load(string path)
         {
             if (!File.Exists(path))
@@ -37,26 +43,40 @@ namespace DL_Skin_Randomiser.Services
 
         public static string Backup(string path)
         {
-            if (!File.Exists(path))
-                SavePreferences(path, new UserPreferences());
+            return CreateBackup(path, DefaultUserBackupDirectory, "preferences", retainedCount: 20);
+        }
 
-            Directory.CreateDirectory(DefaultBackupDirectory);
-            var backupPath = Path.Combine(
-                DefaultBackupDirectory,
-                $"preferences-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+        public static string ImportBackup(string backupPath)
+        {
+            if (!File.Exists(backupPath))
+                throw new FileNotFoundException("The selected backup could not be found.", backupPath);
 
-            File.Copy(path, backupPath, overwrite: false);
-            return backupPath;
+            _ = Load(backupPath);
+
+            Directory.CreateDirectory(DefaultUserBackupDirectory);
+            var importedName = Path.GetFileNameWithoutExtension(backupPath);
+            var backupName = string.IsNullOrWhiteSpace(importedName)
+                ? $"preferences-imported-{DateTime.Now:yyyyMMdd-HHmmss}.json"
+                : $"preferences-imported-{DateTime.Now:yyyyMMdd-HHmmss}-{SanitizeBackupName(importedName)}.json";
+            var importedPath = Path.Combine(DefaultUserBackupDirectory, backupName);
+
+            File.Copy(backupPath, importedPath, overwrite: false);
+            PruneBackups(DefaultUserBackupDirectory, "preferences*.json", retainedCount: 20);
+            return importedPath;
         }
 
         public static List<CharacterOption> ListBackups()
         {
-            if (!Directory.Exists(DefaultBackupDirectory))
-                return [];
+            var backupFiles = new[] { DefaultUserBackupDirectory, DefaultBackupDirectory }
+                .Where(Directory.Exists)
+                .SelectMany(directory => Directory.GetFiles(directory, "preferences*.json", SearchOption.TopDirectoryOnly));
 
-            return Directory.GetFiles(DefaultBackupDirectory, "preferences-*.json")
+            return backupFiles
                 .Select(file => new FileInfo(file))
+                .Where(file => file.DirectoryName is null
+                    || !file.DirectoryName.Equals(DefaultAutoBackupDirectory, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(file => file.LastWriteTime)
+                .Take(20)
                 .Select(file => new CharacterOption
                 {
                     Key = file.FullName,
@@ -74,7 +94,7 @@ namespace DL_Skin_Randomiser.Services
 
             var beforeRestoreBackup = "";
             if (File.Exists(path))
-                beforeRestoreBackup = Backup(path);
+                beforeRestoreBackup = CreateBackup(path, DefaultAutoBackupDirectory, "preferences-auto", retainedCount: 5);
 
             var directory = Path.GetDirectoryName(path);
             if (!string.IsNullOrWhiteSpace(directory))
@@ -82,6 +102,47 @@ namespace DL_Skin_Randomiser.Services
 
             File.Copy(backupPath, path, overwrite: true);
             return beforeRestoreBackup;
+        }
+
+        private static string CreateBackup(string path, string backupDirectory, string namePrefix, int retainedCount)
+        {
+            if (!File.Exists(path))
+                SavePreferences(path, new UserPreferences());
+
+            Directory.CreateDirectory(backupDirectory);
+            var backupPath = Path.Combine(
+                backupDirectory,
+                $"{namePrefix}-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+
+            File.Copy(path, backupPath, overwrite: false);
+            PruneBackups(backupDirectory, $"{namePrefix}*.json", retainedCount);
+            return backupPath;
+        }
+
+        private static void PruneBackups(string backupDirectory, string searchPattern, int retainedCount)
+        {
+            if (retainedCount <= 0 || !Directory.Exists(backupDirectory))
+                return;
+
+            foreach (var oldBackup in Directory.GetFiles(backupDirectory, searchPattern, SearchOption.TopDirectoryOnly)
+                         .Select(file => new FileInfo(file))
+                         .OrderByDescending(file => file.LastWriteTime)
+                         .Skip(retainedCount))
+            {
+                oldBackup.Delete();
+            }
+        }
+
+        private static string SanitizeBackupName(string name)
+        {
+            var invalidCharacters = Path.GetInvalidFileNameChars().ToHashSet();
+            var sanitized = new string(name
+                .Select(character => invalidCharacters.Contains(character) ? '-' : character)
+                .ToArray());
+
+            return string.IsNullOrWhiteSpace(sanitized)
+                ? "backup"
+                : sanitized.Trim();
         }
 
         public static void Apply(List<DlmmMod> mods, UserPreferences preferences, string profileId)
@@ -178,12 +239,32 @@ namespace DL_Skin_Randomiser.Services
 
             var preferences = Load(path);
             var profilePreferences = GetOrCreateProfilePreferences(preferences, profileId);
-            profilePreferences.SavedPresets.Add(new LoadoutPreset
+            var presetName = string.IsNullOrWhiteSpace(name) ? $"Preset {DateTime.Now:dd MMM HH:mm:ss}" : name.Trim();
+            var existingPreset = string.IsNullOrWhiteSpace(name)
+                ? null
+                : profilePreferences.SavedPresets.FirstOrDefault(preset =>
+                    string.Equals(preset.Name, presetName, StringComparison.OrdinalIgnoreCase));
+
+            if (existingPreset is not null)
             {
-                Name = string.IsNullOrWhiteSpace(name) ? $"Preset {DateTime.Now:dd MMM HH:mm:ss}" : name.Trim(),
-                CreatedAt = DateTime.Now,
-                Picks = CloneLoadout(loadout)
-            });
+                existingPreset.CreatedAt = DateTime.Now;
+                existingPreset.Picks = CloneLoadout(loadout);
+            }
+            else
+            {
+                profilePreferences.SavedPresets.Add(new LoadoutPreset
+                {
+                    Name = presetName,
+                    CreatedAt = DateTime.Now,
+                    Picks = CloneLoadout(loadout)
+                });
+            }
+
+            profilePreferences.SavedPresets = profilePreferences.SavedPresets
+                .OrderByDescending(preset => preset.CreatedAt)
+                .Take(20)
+                .ToList();
+
             SavePreferences(path, preferences);
         }
 

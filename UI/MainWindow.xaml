@@ -763,9 +763,19 @@
                                               SelectedValuePath="Key" />
                                     <Button x:Name="RestoreBackupButton"
                                             Width="120"
+                                            Margin="0,0,8,8"
                                             Click="RestoreBackupButton_Click"
                                             Content="Restore" />
+                                    <Button x:Name="ImportBackupButton"
+                                            Width="120"
+                                            Click="ImportBackupButton_Click"
+                                            Content="Import" />
                                 </WrapPanel>
+                                <TextBlock x:Name="BackupLocationText"
+                                           Foreground="#8F989B"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,8" />
                                 <WrapPanel Margin="0,4,0,0">
                                     <TextBlock Margin="0,0,8,8"
                                                VerticalAlignment="Center"
@@ -951,6 +961,7 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="180" />
                                     <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="120" />
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Column="0" Margin="0,0,10,0">
@@ -961,13 +972,21 @@
                                               SelectionChanged="ProfileBox_SelectionChanged" />
                                 </StackPanel>
 
-                                <StackPanel Grid.Column="1">
+                                <StackPanel Grid.Column="1" Margin="0,0,10,0">
                                     <TextBlock Text="DLMM state" Style="{StaticResource FilterLabel}" />
                                     <TextBlock x:Name="StatePathText"
                                                Height="30"
                                                VerticalAlignment="Center"
                                                Foreground="#9F9F9F"
                                                TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Setup" Style="{StaticResource FilterLabel}" />
+                                    <Button x:Name="BrowseDlmmButton"
+                                            Width="110"
+                                            Click="BrowseDlmmButton_Click"
+                                            Content="DLMM state" />
                                 </StackPanel>
                             </Grid>
                         </StackPanel>
@@ -1102,7 +1121,7 @@
                   IsExpanded="False"
                   Margin="0,0,0,12">
             <Expander.Header>
-                <TextBlock Text="Last session loadout"
+                <TextBlock Text="Loadouts and presets"
                            Foreground="#F4F4F4"
                            FontSize="16"
                            FontWeight="SemiBold" />
@@ -1115,27 +1134,45 @@
                     Padding="12">
                 <StackPanel>
                     <WrapPanel Margin="0,0,0,10">
-                        <TextBlock Text="Preset name"
+                        <TextBlock Text="Saved presets"
                                    Style="{StaticResource FilterLabel}"
                                    VerticalAlignment="Center"
                                    Margin="0,0,8,8" />
                         <TextBox x:Name="PresetNameTextBox"
-                                 Width="180"
+                                 Width="190"
                                  Margin="0,0,8,8"
                                  VerticalContentAlignment="Center" />
                         <Button x:Name="SavePresetButton"
                                 Width="118"
+                                Margin="0,0,18,8"
                                 Click="SavePresetButton_Click"
                                 Content="Save preset" />
-                        <ComboBox x:Name="PresetBox"
-                                  Width="280"
+                        <ComboBox x:Name="SavedPresetBox"
+                                  Width="300"
                                   Margin="0,0,8,8"
                                   DisplayMemberPath="Name"
                                   SelectedValuePath="Key" />
-                        <Button x:Name="LoadPresetButton"
-                                Width="118"
-                                Click="LoadPresetButton_Click"
-                                Content="Load preset" />
+                        <Button x:Name="LoadSavedPresetButton"
+                                Width="132"
+                                Margin="0,0,18,8"
+                                Click="LoadSavedPresetButton_Click"
+                                Content="Load saved" />
+                    </WrapPanel>
+                    <WrapPanel Margin="0,0,0,10">
+                        <TextBlock Text="Recent sessions"
+                                   Style="{StaticResource FilterLabel}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,8" />
+                        <ComboBox x:Name="RecentPresetBox"
+                                  Width="300"
+                                  Margin="0,0,8,8"
+                                  DisplayMemberPath="Name"
+                                  SelectedValuePath="Key" />
+                        <Button x:Name="LoadRecentPresetButton"
+                                Width="132"
+                                Margin="0,0,18,8"
+                                Click="LoadRecentPresetButton_Click"
+                                Content="Load recent" />
                     </WrapPanel>
                     <ItemsControl x:Name="LoadoutSummaryList">
                         <ItemsControl.ItemsPanel>

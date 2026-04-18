@@ -40,7 +40,8 @@ namespace DL_Skin_Randomiser
         private string _folderOptionsSignature = "";
         private string _characterOptionsSignature = "";
         private string _groupOptionsSignature = "";
-        private string _presetOptionsSignature = "";
+        private string _savedPresetOptionsSignature = "";
+        private string _recentPresetOptionsSignature = "";
         private UserPreferences _preferences = new();
         private readonly System.Windows.Threading.DispatcherTimer _noticeTimer = new();
         private UpdateCheckResult? _latestUpdate;
@@ -56,7 +57,8 @@ namespace DL_Skin_Randomiser
         public List<CharacterOption> GroupOptions { get; private set; } = [];
         public List<CharacterOption> ProfileOptions { get; private set; } = [];
         public List<CharacterOption> BackupOptions { get; private set; } = [];
-        public List<CharacterOption> PresetOptions { get; private set; } = [];
+        public List<CharacterOption> SavedPresetOptions { get; private set; } = [];
+        public List<CharacterOption> RecentPresetOptions { get; private set; } = [];
 
         private enum NoticeKind
         {
@@ -157,7 +159,7 @@ namespace DL_Skin_Randomiser
             }
 
             LogDiagnosticSnapshot("Randomise", $"Rerolled {_currentLoadout.Count} hero picks.");
-            SetNotice("Reroll ready", $"Rerolled {_currentLoadout.Count} hero picks. Apply or launch when you are happy with them.", NoticeKind.Success, showBanner: true);
+            SetNotice("Reroll ready", $"Rerolled {_currentLoadout.Count} hero picks. Apply to Game, then Play when you are happy with them.", NoticeKind.Success, showBanner: true);
         }
 
         private void ApplyButton_Click(object sender, RoutedEventArgs e)
@@ -409,6 +411,32 @@ namespace DL_Skin_Randomiser
             catch (Exception ex)
             {
                 SetNotice("Restore failed", $"Could not restore backup: {ex.Message}", NoticeKind.Error, showBanner: true);
+            }
+        }
+
+        private void ImportBackupButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "Import setup backup",
+                Filter = "Setup backup JSON|*.json|All files (*.*)|*.*",
+                CheckFileExists = true
+            };
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+                var importedPath = UserPreferenceService.ImportBackup(dialog.FileName);
+                RefreshBackupOptions();
+                BackupBox.SelectedValue = importedPath;
+                LogDiagnosticSnapshot("Backup imported", $"Imported app setup backup: {importedPath}");
+                SetNotice("Backup imported", "Imported setup backup. Choose Restore when you want to use it.", NoticeKind.Success, showBanner: true);
+            }
+            catch (Exception ex)
+            {
+                SetNotice("Import failed", $"Could not import setup backup: {ex.Message}", NoticeKind.Error, showBanner: true);
             }
         }
 
@@ -688,30 +716,53 @@ namespace DL_Skin_Randomiser
         private void RefreshPresetOptions()
         {
             var profilePreferences = GetCurrentProfilePreferences();
-            var presets = profilePreferences.SavedPresets
+            var savedPresets = profilePreferences.SavedPresets
+                .OrderByDescending(preset => preset.CreatedAt)
                 .Select(preset => new CharacterOption
                 {
                     Key = preset.Id,
-                    Name = $"Saved: {preset.Name} - {preset.PickCountText}"
+                    Name = $"{preset.Name} - {preset.PickCountText}"
                 })
-                .Concat(profilePreferences.RecentSessionPresets.Select(preset => new CharacterOption
+                .ToList();
+            var recentPresets = profilePreferences.RecentSessionPresets
+                .OrderByDescending(preset => preset.CreatedAt)
+                .Take(5)
+                .Select(preset => new CharacterOption
                 {
                     Key = preset.Id,
-                    Name = $"Recent: {preset.CreatedAt:dd MMM HH:mm:ss} - {preset.PickCountText}"
-                }))
+                    Name = $"{preset.CreatedAt:dd MMM HH:mm:ss} - {preset.PickCountText}"
+                })
                 .ToList();
 
+            RefreshPresetBox(
+                SavedPresetBox,
+                savedPresets,
+                ref _savedPresetOptionsSignature,
+                options => SavedPresetOptions = options);
+            RefreshPresetBox(
+                RecentPresetBox,
+                recentPresets,
+                ref _recentPresetOptionsSignature,
+                options => RecentPresetOptions = options);
+        }
+
+        private static void RefreshPresetBox(
+            ComboBox presetBox,
+            List<CharacterOption> presets,
+            ref string optionsSignature,
+            Action<List<CharacterOption>> setOptions)
+        {
             var signature = BuildOptionSignature(presets);
-            if (string.Equals(signature, _presetOptionsSignature, StringComparison.Ordinal))
+            if (string.Equals(signature, optionsSignature, StringComparison.Ordinal))
                 return;
 
-            var selectedPreset = PresetBox.SelectedValue as string;
-            _presetOptionsSignature = signature;
-            PresetOptions = presets;
-            PresetBox.ItemsSource = PresetOptions;
-            PresetBox.SelectedValue = PresetOptions.Any(option => string.Equals(option.Key, selectedPreset, StringComparison.OrdinalIgnoreCase))
+            var selectedPreset = presetBox.SelectedValue as string;
+            optionsSignature = signature;
+            setOptions(presets);
+            presetBox.ItemsSource = presets;
+            presetBox.SelectedValue = presets.Any(option => string.Equals(option.Key, selectedPreset, StringComparison.OrdinalIgnoreCase))
                 ? selectedPreset
-                : PresetOptions.FirstOrDefault()?.Key;
+                : presets.FirstOrDefault()?.Key;
         }
 
         private void RefreshAddonsDiagnostics()
@@ -752,13 +803,23 @@ namespace DL_Skin_Randomiser
             SetNotice("Preset saved", $"Saved {(_currentLoadout.Count == 1 ? "1 pick" : $"{_currentLoadout.Count} picks")} as a preset.", NoticeKind.Success, showBanner: true);
         }
 
-        private void LoadPresetButton_Click(object sender, RoutedEventArgs e)
+        private void LoadSavedPresetButton_Click(object sender, RoutedEventArgs e)
         {
-            var presetId = PresetBox.SelectedValue as string ?? "";
+            LoadPresetFromBox(SavedPresetBox, "saved preset");
+        }
+
+        private void LoadRecentPresetButton_Click(object sender, RoutedEventArgs e)
+        {
+            LoadPresetFromBox(RecentPresetBox, "recent session");
+        }
+
+        private void LoadPresetFromBox(ComboBox presetBox, string presetKind)
+        {
+            var presetId = presetBox.SelectedValue as string ?? "";
             var preset = FindPreset(presetId);
             if (preset is null)
             {
-                SetNotice("Choose a preset", "Choose a preset to load.", NoticeKind.Warning, showBanner: true);
+                SetNotice("Choose a preset", $"Choose a {presetKind} to load.", NoticeKind.Warning, showBanner: true);
                 return;
             }
 
@@ -929,6 +990,7 @@ namespace DL_Skin_Randomiser
         private void RefreshBackupOptions()
         {
             var selectedBackup = BackupBox.SelectedValue as string;
+            BackupLocationText.Text = $"Setup backups are saved in {UserPreferenceService.DefaultUserBackupDirectory}";
             BackupOptions = UserPreferenceService.ListBackups();
             BackupBox.ItemsSource = BackupOptions;
             BackupBox.SelectedValue = BackupOptions.Any(option => string.Equals(option.Key, selectedBackup, StringComparison.OrdinalIgnoreCase))
@@ -1234,8 +1296,10 @@ namespace DL_Skin_Randomiser
                 status += $" {result.StagingSkippedCount} mods had no game files to stage.";
             if (result.StaleSourceVpkSkippedCount > 0)
                 status += $" Ignored {result.StaleSourceVpkSkippedCount} stale source VPKs from older mod versions.";
+            if (!string.IsNullOrWhiteSpace(result.BackupPath))
+                status += " DLMM state backup created beside state.json.";
             if (result.GameFilesStaged && !string.IsNullOrWhiteSpace(result.AddonsBackupPath))
-                status += " Backup created.";
+                status += " Staging manifest updated.";
 
             if (result.RequiresDlmmApply)
                 status += " Direct VPK staging is disabled to avoid corrupting shared slots.";
