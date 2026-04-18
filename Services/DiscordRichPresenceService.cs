@@ -129,6 +129,35 @@ namespace DL_Skin_Randomiser.Services
             }
         }
 
+        private async Task ClearActivityAsync()
+        {
+            await _mutex.WaitAsync();
+            try
+            {
+                if (!IsEnabled || !await EnsureConnectedAsync())
+                    return;
+
+                await WriteFrameAsync(FrameOpcode, new
+                {
+                    cmd = "SET_ACTIVITY",
+                    args = new
+                    {
+                        pid = Environment.ProcessId,
+                        activity = (object?)null
+                    },
+                    nonce = Guid.NewGuid().ToString("N")
+                });
+            }
+            catch
+            {
+                ClosePipe();
+            }
+            finally
+            {
+                _mutex.Release();
+            }
+        }
+
         private async Task<bool> EnsureConnectedAsync()
         {
             if (_pipe?.IsConnected == true)
@@ -242,6 +271,7 @@ namespace DL_Skin_Randomiser.Services
         public void Dispose()
         {
             _isDisposed = true;
+            ClearActivityAsync().GetAwaiter().GetResult();
             ClosePipe();
             _mutex.Dispose();
         }
