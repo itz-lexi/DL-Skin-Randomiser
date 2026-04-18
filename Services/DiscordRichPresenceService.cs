@@ -19,6 +19,7 @@ namespace DL_Skin_Randomiser.Services
         private readonly SemaphoreSlim _mutex = new(1, 1);
         private NamedPipeClientStream? _pipe;
         private bool _isDisposed;
+        private bool _isDisposing;
 
         public DiscordRichPresenceService(string clientId)
         {
@@ -119,7 +120,7 @@ namespace DL_Skin_Randomiser.Services
 
         private void SetActivity(string details, string state)
         {
-            if (!IsEnabled || _isDisposed)
+            if (!IsEnabled || _isDisposed || _isDisposing)
                 return;
 
             _ = Task.Run(() => SetActivityAsync(details, state));
@@ -127,10 +128,10 @@ namespace DL_Skin_Randomiser.Services
 
         private async Task SetActivityAsync(string details, string state)
         {
-            await _mutex.WaitAsync();
+            await _mutex.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (_isDisposed || !await EnsureConnectedAsync())
+                if (_isDisposed || _isDisposing || !await EnsureConnectedAsync().ConfigureAwait(false))
                     return;
 
                 var activity = new
@@ -156,7 +157,7 @@ namespace DL_Skin_Randomiser.Services
                     nonce = Guid.NewGuid().ToString("N")
                 };
 
-                await WriteFrameAsync(FrameOpcode, activity);
+                await WriteFrameAsync(FrameOpcode, activity).ConfigureAwait(false);
             }
             catch
             {
@@ -170,10 +171,10 @@ namespace DL_Skin_Randomiser.Services
 
         private async Task ClearActivityAsync()
         {
-            await _mutex.WaitAsync();
+            await _mutex.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (!IsEnabled || !await EnsureConnectedAsync())
+                if (!IsEnabled || !await EnsureConnectedAsync().ConfigureAwait(false))
                     return;
 
                 await WriteFrameAsync(FrameOpcode, new
@@ -185,8 +186,8 @@ namespace DL_Skin_Randomiser.Services
                         activity = (object?)null
                     },
                     nonce = Guid.NewGuid().ToString("N")
-                });
-                _ = await ReadFrameAsync(TimeSpan.FromSeconds(1));
+                }).ConfigureAwait(false);
+                _ = await ReadFrameAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
             }
             catch
             {
@@ -216,10 +217,10 @@ namespace DL_Skin_Randomiser.Services
                 using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
                 try
                 {
-                    await pipe.ConnectAsync(timeout.Token);
+                    await pipe.ConnectAsync(timeout.Token).ConfigureAwait(false);
                     _pipe = pipe;
-                    await WriteFrameAsync(HandshakeOpcode, new { v = 1, client_id = _clientId });
-                    _ = await ReadFrameAsync(TimeSpan.FromSeconds(2));
+                    await WriteFrameAsync(HandshakeOpcode, new { v = 1, client_id = _clientId }).ConfigureAwait(false);
+                    _ = await ReadFrameAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
                     return true;
                 }
                 catch
@@ -243,9 +244,9 @@ namespace DL_Skin_Randomiser.Services
             BitConverter.GetBytes(opcode).CopyTo(header, 0);
             BitConverter.GetBytes(payloadBytes.Length).CopyTo(header, 4);
 
-            await _pipe.WriteAsync(header);
-            await _pipe.WriteAsync(payloadBytes);
-            await _pipe.FlushAsync();
+            await _pipe.WriteAsync(header).ConfigureAwait(false);
+            await _pipe.WriteAsync(payloadBytes).ConfigureAwait(false);
+            await _pipe.FlushAsync().ConfigureAwait(false);
         }
 
         private async Task<string> ReadFrameAsync(TimeSpan timeout)
@@ -254,12 +255,12 @@ namespace DL_Skin_Randomiser.Services
                 return "";
 
             using var timeoutSource = new CancellationTokenSource(timeout);
-            var header = await ReadExactlyAsync(8, timeoutSource.Token);
+            var header = await ReadExactlyAsync(8, timeoutSource.Token).ConfigureAwait(false);
             var length = BitConverter.ToInt32(header, 4);
             if (length <= 0)
                 return "";
 
-            var payload = await ReadExactlyAsync(length, timeoutSource.Token);
+            var payload = await ReadExactlyAsync(length, timeoutSource.Token).ConfigureAwait(false);
             return Encoding.UTF8.GetString(payload);
         }
 
@@ -272,7 +273,7 @@ namespace DL_Skin_Randomiser.Services
             var offset = 0;
             while (offset < length)
             {
-                var read = await _pipe.ReadAsync(buffer.AsMemory(offset, length - offset), cancellationToken);
+                var read = await _pipe.ReadAsync(buffer.AsMemory(offset, length - offset), cancellationToken).ConfigureAwait(false);
                 if (read == 0)
                     throw new EndOfStreamException("Discord IPC closed the connection.");
 
@@ -310,8 +311,12 @@ namespace DL_Skin_Randomiser.Services
 
         public void Dispose()
         {
-            _isDisposed = true;
+            if (_isDisposed)
+                return;
+
+            _isDisposing = true;
             ClearActivityAsync().GetAwaiter().GetResult();
+            _isDisposed = true;
             ClosePipe();
             _mutex.Dispose();
         }

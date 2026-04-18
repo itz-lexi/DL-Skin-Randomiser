@@ -59,6 +59,7 @@ namespace DL_Skin_Randomiser
         private bool _isLoading;
         private bool _isWatchingLaunchedGame;
         private bool _discordShowsInGame;
+        private bool _isShuttingDown;
         private DateTime _noticeExpiresAt;
         private TimeSpan _noticeDuration = TimeSpan.Zero;
 
@@ -92,11 +93,8 @@ namespace DL_Skin_Randomiser
                 LoadMods();
                 await CheckForUpdatesAsync(showWhenCurrent: false);
             };
-            Closed += (_, _) =>
-            {
-                _gameMonitorTimer.Stop();
-                _discordPresence.Dispose();
-            };
+            Closing += (_, _) => ShutdownApplicationServices();
+            Closed += (_, _) => Application.Current.Shutdown();
         }
 
         private void ConfigureBuildVisibility()
@@ -433,13 +431,33 @@ namespace DL_Skin_Randomiser
                 UpdateStatusText.Text = "Installing update. The app will restart when it is done.";
                 SetNotice("Installing update", "The app will close, update itself, and restart. No setup file will be left in Downloads.", NoticeKind.Success, showBanner: true);
                 await Task.Delay(1000);
-                Close();
+                ShutdownApplicationServices();
+                Application.Current.Shutdown();
             }
             catch (Exception ex)
             {
                 DownloadUpdateButton.IsEnabled = _latestUpdate?.HasPortablePackage == true;
                 UpdateStatusText.Text = "Update failed.";
                 SetNotice("Update failed", $"Could not install the update: {ex.Message}", NoticeKind.Error, showBanner: true);
+            }
+        }
+
+        private void ShutdownApplicationServices()
+        {
+            if (_isShuttingDown)
+                return;
+
+            _isShuttingDown = true;
+            _noticeTimer.Stop();
+            _gameMonitorTimer.Stop();
+
+            try
+            {
+                _discordPresence.Dispose();
+            }
+            catch
+            {
+                // Shutdown should never be blocked by Discord IPC cleanup.
             }
         }
 
