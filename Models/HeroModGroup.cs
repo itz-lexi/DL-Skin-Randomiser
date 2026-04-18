@@ -26,7 +26,7 @@ namespace DL_Skin_Randomiser.Models
                 ? "Needs sorting"
                 : "Character";
         public string ModCountText => FormatCount(Mods.Count, "mod");
-        public string EnabledCountText => $"In use: {EnabledCount}";
+        public string EnabledCountText => $"Selected: {EnabledCount}";
         public string RandomizerCountText => IsFolder
             ? "Managed in DLMM"
             : IsUnknown

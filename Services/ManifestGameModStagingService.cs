@@ -240,6 +240,22 @@ namespace DL_Skin_Randomiser.Services
                     StringComparer.OrdinalIgnoreCase);
         }
 
+        public static HashSet<string> GetStageableRemoteIds(string gamePath, IReadOnlyCollection<DlmmMod> mods)
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var addonsPath = GetAddonsPath(gamePath);
+            if (string.IsNullOrWhiteSpace(addonsPath) || !Directory.Exists(addonsPath))
+                return result;
+
+            foreach (var mod in mods.Where(IsKnownHeroSkinMod))
+            {
+                if (BuildSourceSelection(gamePath, addonsPath, mod).Sources.Count > 0)
+                    result.Add(mod.RemoteId);
+            }
+
+            return result;
+        }
+
         public static StagingRepairResult RepairAppStagedVpks(string statePath, string gamePath, IReadOnlyCollection<DlmmMod> mods)
         {
             var result = new StagingRepairResult
@@ -255,7 +271,7 @@ namespace DL_Skin_Randomiser.Services
 
             VaultRandomizerSourceVpks(gamePath, addonsPath, mods);
             var protectedLiveSlots = BuildDlmmManagedRepairLiveSlots(gamePath, addonsPath, mods, result);
-            ClearKnownRandomizerLiveSlots(addonsPath, mods.Where(IsRandomizerOwnedMod).ToList(), result, protectedLiveSlots);
+            ClearKnownRandomizerLiveSlots(addonsPath, mods.Where(IsKnownHeroSkinMod).ToList(), result, protectedLiveSlots);
 
             var manifest = LoadManifest();
             var entries = manifest.Entries
@@ -308,7 +324,7 @@ namespace DL_Skin_Randomiser.Services
         private static HashSet<string> BuildDlmmManagedRepairLiveSlots(string gamePath, string addonsPath, IReadOnlyCollection<DlmmMod> mods, StagingRepairResult result)
         {
             var protectedMods = mods
-                .Where(IsDlmmManagedRepairMod)
+                .Where(mod => IsDlmmManagedMod(gamePath, addonsPath, mod))
                 .ToList();
             result.ExpectedDlmmManagedModCount = protectedMods.Count;
             var protectedLiveSlots = BuildDlmmManagedLiveSlotsForProtectedMods(gamePath, addonsPath, protectedMods);
@@ -323,7 +339,7 @@ namespace DL_Skin_Randomiser.Services
             return BuildDlmmManagedLiveSlotsForProtectedMods(
                 gamePath,
                 addonsPath,
-                mods.Where(IsDlmmManagedRepairMod).ToList());
+                mods.Where(mod => IsDlmmManagedMod(gamePath, addonsPath, mod)).ToList());
         }
 
         private static HashSet<string> BuildDlmmManagedLiveSlotsForProtectedMods(string gamePath, string addonsPath, IReadOnlyCollection<DlmmMod> protectedMods)
@@ -370,7 +386,7 @@ namespace DL_Skin_Randomiser.Services
         private static void RemoveHashMatchedRandomizerSkinVpks(string gamePath, string addonsPath, IReadOnlyCollection<DlmmMod> mods, StagingRepairResult result, HashSet<string> protectedLiveSlots)
         {
             var sourceHashes = mods
-                .Where(IsRandomizerOwnedMod)
+                .Where(IsKnownHeroSkinMod)
                 .SelectMany(mod => BuildSourceSelection(gamePath, addonsPath, mod).Sources)
                 .Select(file => TryGetFileHash(file.FullName))
                 .Where(hash => !string.IsNullOrWhiteSpace(hash))
@@ -463,20 +479,24 @@ namespace DL_Skin_Randomiser.Services
                 && !string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static bool IsVaultableSkinSourceMod(DlmmMod mod)
+        private static bool IsKnownHeroSkinMod(DlmmMod mod)
         {
-            return IsRandomizerOwnedMod(mod)
-                || (!mod.IsEnabledInDlmmProfile
-                && !string.IsNullOrWhiteSpace(mod.RemoteId)
+            return !string.IsNullOrWhiteSpace(mod.RemoteId)
                 && string.IsNullOrWhiteSpace(mod.Folder)
                 && string.Equals(mod.Category, "Skins", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase));
+                && !string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static bool IsDlmmManagedRepairMod(DlmmMod mod)
+        private static bool IsVaultableSkinSourceMod(DlmmMod mod)
+        {
+            return IsKnownHeroSkinMod(mod)
+                && (mod.IncludedInRandomizer || !mod.IsEnabledInDlmmProfile);
+        }
+
+        private static bool IsDlmmManagedMod(string gamePath, string addonsPath, DlmmMod mod)
         {
             return mod.IsEnabledInDlmmProfile
-                && !IsRandomizerOwnedMod(mod);
+                && (!IsKnownHeroSkinMod(mod) || BuildSourceSelection(gamePath, addonsPath, mod).Sources.Count == 0);
         }
 
         private static SourceSelection BuildSourceSelection(string gamePath, string addonsPath, DlmmMod mod)

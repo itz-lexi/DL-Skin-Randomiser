@@ -1041,9 +1041,9 @@
                             </StackPanel>
 
                             <StackPanel Width="96" Margin="0,0,10,0" Visibility="Collapsed">
-                                <TextBlock Text="Use" Style="{StaticResource FilterLabel}" />
+                                <TextBlock Text="Selection" Style="{StaticResource FilterLabel}" />
                                 <CheckBox x:Name="InUseFilterCheckBox"
-                                          Content="In use"
+                                          Content="Selected"
                                           VerticalAlignment="Center"
                                           Margin="0,6,0,0"
                                           Checked="FilterCheckBox_Changed"
@@ -1377,7 +1377,7 @@
                                                                               Checked="ModPreference_Changed"
                                                                               Unchecked="ModPreference_Changed"
                                                                               Margin="0,0,10,2" />
-                                                                    <CheckBox Content="In use"
+                                                                    <CheckBox Content="Selected"
                                                                               IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                               Checked="ModPreference_Changed"
                                                                               Unchecked="ModPreference_Changed"

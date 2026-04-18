@@ -761,7 +761,15 @@ namespace DL_Skin_Randomiser
 
         private bool RandomiseCurrentLoadout()
         {
-            _mods = ModSelectionService.RandomlySelectOnePerHero(_mods)
+            SyncVisibleRandomizerSettingsToAllMods();
+            HashSet<string> stageableRemoteIds = !string.IsNullOrWhiteSpace(_gamePath)
+                ? ManifestGameModStagingService.GetStageableRemoteIds(_gamePath, GetSourceVaultMods())
+                : [];
+
+            _mods = ModSelectionService.RandomlySelectOnePerHero(
+                    _mods,
+                    stageableRemoteIds.Count > 0 ? stageableRemoteIds : null,
+                    _currentLoadout)
                 .OrderBy(mod => mod.Hero)
                 .ThenBy(mod => mod.Name)
                 .ToList();
@@ -957,6 +965,7 @@ namespace DL_Skin_Randomiser
                 }
 
                 mod.Folder = visibleMod.Folder;
+                mod.Hero = visibleMod.Hero;
                 mod.IncludedInRandomizer = visibleMod.IncludedInRandomizer;
             }
         }
@@ -1648,8 +1657,8 @@ namespace DL_Skin_Randomiser
         private string BuildApplyStatus(ApplyResult result)
         {
             var status = result.GameFilesStaged
-                ? $"Applied to game for {GetSelectedProfileName()}. In use: {result.EnabledCount}. Staged +{result.StagedEnabledCount}/-{result.StagedDisabledCount}."
-                : $"DLMM state updated for {GetSelectedProfileName()}. In use: {result.EnabledCount}. Open DLMM and apply/rebuild before launching the game.";
+                ? $"Applied to game for {GetSelectedProfileName()}. Selected in app: {result.EnabledCount}. Staged +{result.StagedEnabledCount}/-{result.StagedDisabledCount}."
+                : $"DLMM state updated for {GetSelectedProfileName()}. Selected in app: {result.EnabledCount}. Open DLMM and apply/rebuild before launching the game.";
 
             if (result.ForcedDisabledCount > 0)
                 status += $" Disabled {result.ForcedDisabledCount} duplicate hero picks.";
@@ -1677,11 +1686,11 @@ namespace DL_Skin_Randomiser
 
         private string BuildLoadedStatus(AddonsReconciliationResult addonsState)
         {
-            var inUseCount = _mods.Count(mod => mod.Enabled);
+            var selectedCount = _mods.Count(mod => mod.Enabled);
             if (addonsState.LiveSlotCount == 0)
-                return $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. In use from DLMM state: {inUseCount}.";
+                return $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. Selected in app: {selectedCount}. No live addon VPKs were found.";
 
-            var status = $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. In use from game files: {inUseCount}/{addonsState.LiveSlotCount} live VPKs.";
+            var status = $"Loaded {_mods.Count} mods from {GetSelectedProfileName()}. Selected in app: {selectedCount}. Addons has {addonsState.LiveSlotCount} live VPKs.";
 
             if (addonsState.AppStagedModCount > 0)
                 status += $" {addonsState.AppStagedModCount} were staged by this app.";

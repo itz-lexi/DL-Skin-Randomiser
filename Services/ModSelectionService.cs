@@ -6,7 +6,10 @@ namespace DL_Skin_Randomiser.Services
     {
         private static readonly Random Random = new();
 
-        public static List<DlmmMod> RandomlySelectOnePerHero(IEnumerable<DlmmMod> mods)
+        public static List<DlmmMod> RandomlySelectOnePerHero(
+            IEnumerable<DlmmMod> mods,
+            IReadOnlySet<string>? stageableRemoteIds = null,
+            IReadOnlyCollection<LoadoutPick>? previousLoadout = null)
         {
             var candidateMods = mods
                 .Where(mod => !string.IsNullOrWhiteSpace(mod.RemoteId))
@@ -17,10 +20,32 @@ namespace DL_Skin_Randomiser.Services
                 mod.Hero = NormalizeHero(mod.Hero);
             }
 
+            var previousRemoteIdsByHero = (previousLoadout ?? [])
+                .Where(pick => !string.IsNullOrWhiteSpace(pick.RemoteId))
+                .GroupBy(pick => NormalizeHero(pick.Hero))
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Select(pick => pick.RemoteId).ToHashSet(StringComparer.OrdinalIgnoreCase),
+                    StringComparer.OrdinalIgnoreCase);
+
             var selectedRemoteIds = candidateMods
                 .Where(IsRandomizerCandidate)
+                .Where(mod => stageableRemoteIds is null || stageableRemoteIds.Contains(mod.RemoteId))
                 .GroupBy(mod => mod.Hero)
-                .Select(group => group.ElementAt(Random.Next(group.Count())).RemoteId)
+                .Select(group =>
+                {
+                    var candidates = group.ToList();
+                    if (previousRemoteIdsByHero.TryGetValue(group.Key, out var previousRemoteIds) && candidates.Count > 1)
+                    {
+                        var freshCandidates = candidates
+                            .Where(mod => !previousRemoteIds.Contains(mod.RemoteId))
+                            .ToList();
+                        if (freshCandidates.Count > 0)
+                            candidates = freshCandidates;
+                    }
+
+                    return candidates[Random.Next(candidates.Count)].RemoteId;
+                })
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var ownedHeroKeys = candidateMods
                 .Where(IsRandomizerOwnedMod)
@@ -37,8 +62,7 @@ namespace DL_Skin_Randomiser.Services
 
         private static bool IsRandomizerCandidate(DlmmMod mod)
         {
-            return IsRandomizerOwnedMod(mod)
-                && mod.InstalledVpks.Count > 0;
+            return IsRandomizerOwnedMod(mod);
         }
 
         private static bool IsRandomizerOwnedMod(DlmmMod mod)

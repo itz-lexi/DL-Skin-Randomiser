@@ -68,7 +68,7 @@ namespace DL_Skin_Randomiser.Services
             builder.AppendLine($"State path: {statePath}");
             builder.AppendLine($"Game path: {gamePath}");
             builder.AppendLine($"Loaded mods: {mods.Count}");
-            builder.AppendLine($"In use: {mods.Count(mod => mod.Enabled)}");
+            builder.AppendLine($"Selected in app: {mods.Count(mod => mod.Enabled)}");
             builder.AppendLine($"Included in randomiser: {mods.Count(mod => mod.IncludedInRandomizer)}");
             builder.AppendLine($"Protected/custom folder mods: {mods.Count(mod => !string.IsNullOrWhiteSpace(mod.Folder))}");
             builder.AppendLine($"Unknown/unsorted mods: {mods.Count(mod => string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(mod.Folder))}");
