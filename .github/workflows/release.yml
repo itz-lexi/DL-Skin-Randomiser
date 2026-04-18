@@ -55,7 +55,8 @@ jobs:
             /p:PublishSingleFile=true `
             /p:IncludeNativeLibrariesForSelfExtract=true `
             /p:Version=${{ steps.version.outputs.version }} `
-            /p:InformationalVersion=${{ steps.version.outputs.tag }}
+            /p:InformationalVersion=${{ steps.version.outputs.tag }} `
+            /p:DiscordClientId=${{ vars.DISCORD_CLIENT_ID }}
 
       - name: Package artifacts
         shell: pwsh
