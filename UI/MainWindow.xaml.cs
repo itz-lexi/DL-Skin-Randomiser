@@ -7,11 +7,13 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.IO;
 using System.Diagnostics;
+using System.Reflection;
 using DL_Skin_Randomiser.Models;
 using DL_Skin_Randomiser.Services;
 using Microsoft.Win32;
@@ -23,9 +25,12 @@ namespace DL_Skin_Randomiser
     {
         private const string AllCharactersFilter = "All characters";
         private const string AllFoldersFilter = "All folders";
-        private static readonly TimeSpan NoticeTickInterval = TimeSpan.FromMilliseconds(100);
+        private static readonly TimeSpan NoticeTickInterval = TimeSpan.FromMilliseconds(50);
+        private static readonly TimeSpan NoticeAnimationDuration = TimeSpan.FromMilliseconds(260);
+        private static readonly TimeSpan NoticeDisplayDuration = TimeSpan.FromSeconds(20);
 
         private readonly string _preferencesPath = UserPreferenceService.DefaultPreferencesPath;
+        private readonly string _appVersion = GetAppVersion();
 #if DEBUG
         private const bool IsDevBuild = true;
 #else
@@ -72,6 +77,7 @@ namespace DL_Skin_Randomiser
         {
             InitializeComponent();
             ConfigureBuildVisibility();
+            ResetTopStatus();
             _noticeTimer.Interval = NoticeTickInterval;
             _noticeTimer.Tick += NoticeTimer_Tick;
             Loaded += async (_, _) =>
@@ -1199,7 +1205,7 @@ namespace DL_Skin_Randomiser
                 return;
             }
 
-            NoticeExpiryBar.Value = Math.Max(0, Math.Min(1, remaining.TotalMilliseconds / _noticeDuration.TotalMilliseconds));
+            // The progress bar value is animated directly; the timer only hides the banner when time expires.
         }
 
         private void SetNotice(string title, string message, NoticeKind kind = NoticeKind.Info, bool showBanner = false)
@@ -1224,35 +1230,114 @@ namespace DL_Skin_Randomiser
             if (showBanner)
                 ShowNoticeBanner(kind);
             else
-                HideNoticeBanner();
+                HideNoticeBanner(resetTopStatus: false);
         }
 
         private void ShowNoticeBanner(NoticeKind kind)
         {
-            _noticeDuration = kind switch
-            {
-                NoticeKind.Error => TimeSpan.FromSeconds(12),
-                NoticeKind.Warning => TimeSpan.FromSeconds(9),
-                _ => TimeSpan.FromSeconds(6)
-            };
+            _noticeDuration = NoticeDisplayDuration;
 
             _noticeExpiresAt = DateTime.UtcNow.Add(_noticeDuration);
+            NoticeExpiryBar.BeginAnimation(RangeBase.ValueProperty, null);
             NoticeExpiryBar.Value = 1;
+            NoticeBanner.BeginAnimation(OpacityProperty, null);
+            NoticeBanner.BeginAnimation(MaxHeightProperty, null);
+            NoticeBannerTransform.BeginAnimation(TranslateTransform.YProperty, null);
             NoticeBanner.Visibility = Visibility.Visible;
+            NoticeBanner.Opacity = 0;
+            NoticeBanner.MaxHeight = 0;
+            NoticeBannerTransform.Y = -8;
+            AnimateNoticeBanner(isVisible: true);
+            NoticeExpiryBar.BeginAnimation(
+                RangeBase.ValueProperty,
+                new DoubleAnimation
+                {
+                    From = 1,
+                    To = 0,
+                    Duration = _noticeDuration,
+                    EasingFunction = null
+                });
             _noticeTimer.Stop();
             _noticeTimer.Start();
         }
 
-        private void HideNoticeBanner()
+        private void HideNoticeBanner(bool resetTopStatus = true)
         {
             _noticeTimer.Stop();
+            NoticeExpiryBar.BeginAnimation(RangeBase.ValueProperty, null);
             NoticeExpiryBar.Value = 0;
-            NoticeBanner.Visibility = Visibility.Collapsed;
+            if (resetTopStatus)
+                ResetTopStatus();
+
+            if (NoticeBanner.Visibility != Visibility.Visible)
+                return;
+
+            AnimateNoticeBanner(isVisible: false);
+        }
+
+        private void AnimateNoticeBanner(bool isVisible)
+        {
+            var opacityAnimation = new DoubleAnimation
+            {
+                To = isVisible ? 1 : 0,
+                Duration = NoticeAnimationDuration,
+                EasingFunction = new CubicEase { EasingMode = isVisible ? EasingMode.EaseOut : EasingMode.EaseIn }
+            };
+            var offsetAnimation = new DoubleAnimation
+            {
+                To = isVisible ? 0 : -8,
+                Duration = NoticeAnimationDuration,
+                EasingFunction = new CubicEase { EasingMode = isVisible ? EasingMode.EaseOut : EasingMode.EaseIn }
+            };
+
+            if (!isVisible)
+            {
+                opacityAnimation.Completed += (_, _) =>
+                {
+                    NoticeBanner.Visibility = Visibility.Collapsed;
+                    NoticeBanner.Opacity = 0;
+                    NoticeBanner.MaxHeight = 0;
+                    NoticeBannerTransform.Y = -8;
+                };
+            }
+
+            var heightAnimation = new DoubleAnimation
+            {
+                From = isVisible ? 0 : Math.Max(0, NoticeBanner.ActualHeight),
+                To = isVisible ? 260 : 0,
+                Duration = NoticeAnimationDuration,
+                EasingFunction = new CubicEase { EasingMode = isVisible ? EasingMode.EaseOut : EasingMode.EaseInOut }
+            };
+
+            NoticeBanner.BeginAnimation(OpacityProperty, opacityAnimation);
+            NoticeBanner.BeginAnimation(MaxHeightProperty, heightAnimation);
+            NoticeBannerTransform.BeginAnimation(TranslateTransform.YProperty, offsetAnimation);
+        }
+
+        private void ResetTopStatus()
+        {
+            NoticeTitleText.Text = "Deadlock Skin Randomiser";
+            StatusText.Text = $"Version {_appVersion}";
+            TrayStatusDot.Fill = BrushFrom("#91D18B");
         }
 
         private static SolidColorBrush BrushFrom(string hex)
         {
             return (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
+        }
+
+        private static string GetAppVersion()
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var informationalVersion = assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                ?.InformationalVersion;
+
+            var version = string.IsNullOrWhiteSpace(informationalVersion)
+                ? assembly.GetName().Version?.ToString(3) ?? "0.1.0"
+                : informationalVersion.Split('+')[0];
+
+            return IsDevBuild ? $"{version} dev" : version;
         }
 
         private string GetSelectedProfileName()

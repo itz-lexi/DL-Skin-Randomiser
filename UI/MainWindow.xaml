@@ -702,7 +702,7 @@
                                             </Path>
                                         </Border>
                                         <TextBlock Grid.Column="1"
-                                                   Text="Manage folders"
+                                                   Text="Setup and folders"
                                                    Foreground="#E7EBED"
                                                    FontWeight="SemiBold"
                                                    VerticalAlignment="Center" />
@@ -728,79 +728,79 @@
                     <Border Style="{StaticResource TopPanel}"
                             Margin="0,0,8,8"
                             Visibility="{Binding IsChecked, ElementName=ManageFoldersToggle, Converter={StaticResource BoolToVisibility}}">
-                            <StackPanel>
+                        <StackPanel>
+                            <StackPanel Margin="0,0,0,12">
+                                <TextBlock Text="Create folder"
+                                           Style="{StaticResource FilterLabel}"
+                                           Margin="0,0,0,5" />
                                 <WrapPanel>
-                                    <TextBlock Margin="0,0,8,8"
-                                               VerticalAlignment="Center"
-                                               Foreground="#AEB7BA"
-                                               Text="New folder" />
                                     <TextBox x:Name="NewFolderTextBox"
-                                             Width="170"
+                                             Width="220"
                                              Margin="0,0,8,8"
                                              VerticalContentAlignment="Center" />
                                     <Button x:Name="AddFolderButton"
                                             Width="100"
                                             Click="AddFolderButton_Click"
                                             Content="Add" />
-                                    <Button x:Name="BrowseDlmmButton"
-                                            Width="110"
-                                            Click="BrowseDlmmButton_Click"
-                                            Content="DLMM state" />
+                                </WrapPanel>
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,0,12">
+                                <TextBlock Text="Setup backups"
+                                           Style="{StaticResource FilterLabel}"
+                                           Margin="0,0,0,5" />
+                                <WrapPanel>
                                     <Button x:Name="BackupPreferencesButton"
-                                            Width="120"
+                                            Width="124"
                                             Click="BackupPreferencesButton_Click"
                                             Content="Backup setup" />
-                                </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <TextBlock Margin="0,0,8,8"
-                                               VerticalAlignment="Center"
-                                               Foreground="#AEB7BA"
-                                               Text="Backups" />
                                     <ComboBox x:Name="BackupBox"
-                                              Width="360"
+                                              Width="390"
                                               Margin="0,0,8,8"
                                               DisplayMemberPath="Name"
                                               SelectedValuePath="Key" />
                                     <Button x:Name="RestoreBackupButton"
-                                            Width="120"
+                                            Width="110"
                                             Margin="0,0,8,8"
                                             Click="RestoreBackupButton_Click"
                                             Content="Restore" />
                                     <Button x:Name="ImportBackupButton"
-                                            Width="120"
+                                            Width="110"
                                             Click="ImportBackupButton_Click"
                                             Content="Import" />
                                 </WrapPanel>
                                 <TextBlock x:Name="BackupLocationText"
                                            Foreground="#8F989B"
                                            FontSize="11"
-                                           TextWrapping="Wrap"
-                                           Margin="0,0,0,8" />
-                                <WrapPanel Margin="0,4,0,0">
-                                    <TextBlock Margin="0,0,8,8"
-                                               VerticalAlignment="Center"
-                                               Foreground="#AEB7BA"
-                                               Text="Selected folder" />
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <StackPanel>
+                                <TextBlock Text="Folder editor"
+                                           Style="{StaticResource FilterLabel}"
+                                           Margin="0,0,0,5" />
+                                <WrapPanel>
                                     <ComboBox x:Name="EditFolderBox"
-                                              Width="170"
+                                              Width="200"
                                               Margin="0,0,8,8"
                                               DisplayMemberPath="Name"
                                               SelectedValuePath="Key"
                                               SelectionChanged="EditFolderBox_SelectionChanged" />
                                     <TextBox x:Name="EditFolderNameTextBox"
-                                             Width="170"
+                                             Width="220"
                                              Margin="0,0,8,8"
                                              VerticalContentAlignment="Center" />
                                     <Button x:Name="RenameFolderButton"
-                                            Width="118"
+                                            Width="110"
                                             Click="RenameFolderButton_Click"
                                             Content="Rename" />
                                     <Button x:Name="RemoveFolderButton"
-                                            Width="118"
+                                            Width="110"
                                             Click="RemoveFolderButton_Click"
                                             Content="Remove" />
                                 </WrapPanel>
                             </StackPanel>
+                        </StackPanel>
                         </Border>
                     <ToggleButton x:Name="UpdatesToggle"
                                   Margin="0,0,8,8"
@@ -1009,7 +1009,13 @@
                 CornerRadius="8"
                 Padding="14,10,10,8"
                 Margin="0,0,0,12"
+                ClipToBounds="True"
+                MaxHeight="0"
+                Opacity="0"
                 Visibility="Collapsed">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="NoticeBannerTransform" Y="-8" />
+            </Border.RenderTransform>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
