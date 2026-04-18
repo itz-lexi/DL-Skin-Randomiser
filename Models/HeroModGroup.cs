@@ -8,6 +8,7 @@ namespace DL_Skin_Randomiser.Models
 
         public string Hero { get; set; } = "";
         public bool IsFolder { get; set; }
+        public bool IsSearchResults { get; set; }
         public string DisplayName { get; set; } = "";
         public string DisplayHero => string.IsNullOrWhiteSpace(DisplayName)
             ? Services.HeroDisplayService.ToDisplayName(Hero)
@@ -17,7 +18,9 @@ namespace DL_Skin_Randomiser.Models
         public int IncludedCount => Mods.Count(mod => mod.IncludedInRandomizer);
         public int EnabledCount => Mods.Count(mod => mod.Enabled);
         public bool IsUnknown => string.Equals(Hero, "unknown", StringComparison.OrdinalIgnoreCase) && !IsFolder;
-        public string SectionKindText => IsFolder
+        public string SectionKindText => IsSearchResults
+            ? "Search"
+            : IsFolder
             ? "Folder"
             : IsUnknown
                 ? "Needs sorting"

@@ -8,7 +8,8 @@
         Title="Deadlock Skin Randomiser" Height="760" Width="1180"
         Icon="/Assets/AppIcon.ico"
         Background="#0F1011"
-        FontFamily="Segoe UI">
+        FontFamily="Segoe UI"
+        PreviewMouseDown="Window_PreviewMouseDown">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <SolidColorBrush x:Key="AccentPinkBrush" Color="#FF7AD9" />

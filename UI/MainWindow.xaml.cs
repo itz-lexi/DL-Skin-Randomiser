@@ -1,6 +1,8 @@
 ﻿using System.Text;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -44,6 +46,7 @@ namespace DL_Skin_Randomiser
         private UpdateCheckResult? _latestUpdate;
         private AddonsReconciliationResult _addonsState = new();
         private bool _isBindingGroups;
+        private bool _bindGroupsAgain;
         private bool _isLoading;
         private DateTime _noticeExpiresAt;
         private TimeSpan _noticeDuration = TimeSpan.Zero;
@@ -575,6 +578,20 @@ namespace DL_Skin_Randomiser
             return candidates.FirstOrDefault(candidate => File.Exists(candidate)) ?? DlmmStateService.DefaultStatePath;
         }
 
+        private void RequestBindGroups()
+        {
+            if (!IsLoaded || _isLoading)
+                return;
+
+            if (_isBindingGroups)
+            {
+                _bindGroupsAgain = true;
+                return;
+            }
+
+            BindGroups();
+        }
+
         private void BindGroups()
         {
             _isBindingGroups = true;
@@ -582,24 +599,28 @@ namespace DL_Skin_Randomiser
             var filter = NormalizeFilter(CharacterFilterBox.Text);
             var folderFilter = NormalizeFolder(FolderFilterBox.Text);
             var searchText = NormalizeSearch(ModSearchBox.Text);
+            var searchIsActive = !string.IsNullOrWhiteSpace(searchText);
             var inUseOnly = InUseFilterCheckBox.IsChecked == true;
             var inRandomizerOnly = InRandomizerFilterCheckBox.IsChecked == true;
             var shouldAutoExpandSections =
                 !string.IsNullOrWhiteSpace(filter)
                 || !string.IsNullOrWhiteSpace(folderFilter)
-                || !string.IsNullOrWhiteSpace(searchText);
+                || searchIsActive;
             var groupedMods = _mods
                 .Where(mod => CharacterMatchesFilter(mod, filter))
                 .Where(mod => FolderMatchesFilter(mod, folderFilter))
                 .Where(mod => !inUseOnly || mod.Enabled)
                 .Where(mod => !inRandomizerOnly || mod.IncludedInRandomizer)
                 .Where(mod => SearchMatchesFilter(mod, searchText))
-                .GroupBy(GetSectionKey)
+                .GroupBy(mod => searchIsActive ? "search-results" : GetSectionKey(mod))
                 .Select(group => new HeroModGroup
                 {
                     Hero = group.Key,
-                    IsFolder = group.Any(mod => !string.IsNullOrWhiteSpace(NormalizeFolder(mod.Folder))),
-                    DisplayName = group.Any(mod => !string.IsNullOrWhiteSpace(NormalizeFolder(mod.Folder)))
+                    IsSearchResults = searchIsActive,
+                    IsFolder = !searchIsActive && group.Any(mod => !string.IsNullOrWhiteSpace(NormalizeFolder(mod.Folder))),
+                    DisplayName = searchIsActive
+                        ? "Search results"
+                        : group.Any(mod => !string.IsNullOrWhiteSpace(NormalizeFolder(mod.Folder)))
                         ? GetFolderDisplayName(group.Key)
                         : "",
                     IsExpanded = shouldAutoExpandSections || ShouldExpandGroup(group.Key),
@@ -616,6 +637,11 @@ namespace DL_Skin_Randomiser
             Dispatcher.BeginInvoke(() =>
             {
                 _isBindingGroups = false;
+                if (!_bindGroupsAgain)
+                    return;
+
+                _bindGroupsAgain = false;
+                BindGroups();
             }, System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
@@ -912,72 +938,54 @@ namespace DL_Skin_Randomiser
 
         private void CharacterFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups || _isLoading)
+            if (!IsLoaded || _isLoading)
                 return;
 
             if (CharacterFilterBox.SelectedItem is string selectedCharacter)
                 CharacterFilterBox.Text = selectedCharacter;
 
-            Dispatcher.BeginInvoke(BindGroups);
+            Dispatcher.BeginInvoke(RequestBindGroups);
         }
 
         private void CharacterFilterBox_DropDownClosed(object sender, EventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups || _isLoading)
-                return;
-
-            BindGroups();
+            RequestBindGroups();
         }
 
         private void CharacterFilterBox_KeyUp(object sender, KeyEventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups || _isLoading)
-                return;
-
-            BindGroups();
+            RequestBindGroups();
         }
 
         private void FolderFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups || _isLoading)
+            if (!IsLoaded || _isLoading)
                 return;
 
             if (FolderFilterBox.SelectedItem is string selectedFolder)
                 FolderFilterBox.Text = selectedFolder;
 
-            Dispatcher.BeginInvoke(BindGroups);
+            Dispatcher.BeginInvoke(RequestBindGroups);
         }
 
         private void FolderFilterBox_DropDownClosed(object sender, EventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups || _isLoading)
-                return;
-
-            BindGroups();
+            RequestBindGroups();
         }
 
         private void FolderFilterBox_KeyUp(object sender, KeyEventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups || _isLoading)
-                return;
-
-            BindGroups();
+            RequestBindGroups();
         }
 
         private void ModSearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups || _isLoading)
-                return;
-
-            BindGroups();
+            RequestBindGroups();
         }
 
         private void FilterCheckBox_Changed(object sender, RoutedEventArgs e)
         {
-            if (!IsLoaded || _isBindingGroups || _isLoading)
-                return;
-
-            Dispatcher.BeginInvoke(BindGroups);
+            Dispatcher.BeginInvoke(RequestBindGroups);
         }
 
         private void ProfileBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1313,12 +1321,39 @@ namespace DL_Skin_Randomiser
             e.Handled = true;
         }
 
+        private void Window_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (IsInsideInteractiveInput(e.OriginalSource as DependencyObject))
+                return;
+
+            Keyboard.ClearFocus();
+        }
+
         private static bool IsInsideComboBox(DependencyObject? source)
         {
             while (source is not null)
             {
                 if (source is ComboBox or ComboBoxItem)
                     return true;
+
+                source = VisualTreeHelper.GetParent(source);
+            }
+
+            return false;
+        }
+
+        private static bool IsInsideInteractiveInput(DependencyObject? source)
+        {
+            while (source is not null)
+            {
+                if (source is TextBox
+                    or ComboBox
+                    or ComboBoxItem
+                    or ButtonBase
+                    or ToggleButton)
+                {
+                    return true;
+                }
 
                 source = VisualTreeHelper.GetParent(source);
             }
@@ -1350,11 +1385,7 @@ namespace DL_Skin_Randomiser
             var searchableValues = new[]
             {
                 mod.Name,
-                mod.Category,
-                mod.Status,
-                HeroDisplayService.ToDisplayName(mod.Hero),
-                HeroDisplayService.ToDisplayName(mod.Folder),
-                mod.RemoteId
+                HeroDisplayService.ToDisplayName(mod.Hero)
             };
 
             return searchableValues.Any(value => value.Contains(searchText, StringComparison.OrdinalIgnoreCase));
@@ -1382,7 +1413,26 @@ namespace DL_Skin_Randomiser
 
         private static string NormalizeSearch(string searchText)
         {
-            return searchText.Trim();
+            if (string.IsNullOrWhiteSpace(searchText))
+                return "";
+
+            var normalized = new StringBuilder(searchText.Length);
+            foreach (var character in searchText)
+            {
+                var category = CharUnicodeInfo.GetUnicodeCategory(character);
+                if (char.IsControl(character)
+                    || category is UnicodeCategory.Format
+                        or UnicodeCategory.PrivateUse
+                        or UnicodeCategory.Surrogate
+                        or UnicodeCategory.OtherNotAssigned)
+                {
+                    continue;
+                }
+
+                normalized.Append(character);
+            }
+
+            return normalized.ToString().Trim();
         }
 
         private static string NormalizeHero(string hero)
