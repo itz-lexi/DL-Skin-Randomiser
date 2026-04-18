@@ -900,7 +900,7 @@
                                          TextChanged="ModSearchBox_TextChanged" />
                             </StackPanel>
 
-                            <StackPanel Width="96" Margin="0,0,10,0">
+                            <StackPanel Width="96" Margin="0,0,10,0" Visibility="Collapsed">
                                 <TextBlock Text="Use" Style="{StaticResource FilterLabel}" />
                                 <CheckBox x:Name="InUseFilterCheckBox"
                                           Content="In use"
@@ -910,7 +910,7 @@
                                           Unchecked="FilterCheckBox_Changed" />
                             </StackPanel>
 
-                            <StackPanel Width="126" Margin="0,0,10,0">
+                            <StackPanel Width="126" Margin="0,0,10,0" Visibility="Collapsed">
                                 <TextBlock Text="Randomiser" Style="{StaticResource FilterLabel}" />
                                 <CheckBox x:Name="InRandomizerFilterCheckBox"
                                           Content="Included"

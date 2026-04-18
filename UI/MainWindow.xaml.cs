@@ -81,6 +81,9 @@ namespace DL_Skin_Randomiser
             AddonsDiagnosticsExpander.Visibility = IsDevBuild
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+            ReloadButton.Visibility = IsDevBuild
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         }
 
         private void LoadMods()
@@ -581,6 +584,10 @@ namespace DL_Skin_Randomiser
             var searchText = NormalizeSearch(ModSearchBox.Text);
             var inUseOnly = InUseFilterCheckBox.IsChecked == true;
             var inRandomizerOnly = InRandomizerFilterCheckBox.IsChecked == true;
+            var shouldAutoExpandSections =
+                !string.IsNullOrWhiteSpace(filter)
+                || !string.IsNullOrWhiteSpace(folderFilter)
+                || !string.IsNullOrWhiteSpace(searchText);
             var groupedMods = _mods
                 .Where(mod => CharacterMatchesFilter(mod, filter))
                 .Where(mod => FolderMatchesFilter(mod, folderFilter))
@@ -595,7 +602,7 @@ namespace DL_Skin_Randomiser
                     DisplayName = group.Any(mod => !string.IsNullOrWhiteSpace(NormalizeFolder(mod.Folder)))
                         ? GetFolderDisplayName(group.Key)
                         : "",
-                    IsExpanded = ShouldExpandGroup(group.Key),
+                    IsExpanded = shouldAutoExpandSections || ShouldExpandGroup(group.Key),
                     Mods = group.OrderByDescending(mod => mod.Enabled)
                         .ThenByDescending(mod => mod.IncludedInRandomizer)
                         .ThenBy(mod => mod.Name)
