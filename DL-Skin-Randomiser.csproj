@@ -17,7 +17,12 @@
     <Description>A pre-session skin randomiser for Deadlock and Deadlock Mod Manager.</Description>
     <RepositoryUrl>https://github.com/itz-lexi/DL-Skin-Randomiser</RepositoryUrl>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <DiscordClientId Condition="'$(DiscordClientId)' == ''"></DiscordClientId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="DiscordClientId" Value="$(DiscordClientId)" />
+  </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Core\" />

@@ -49,11 +49,15 @@ namespace DL_Skin_Randomiser
         private string _recentPresetOptionsSignature = "";
         private UserPreferences _preferences = new();
         private readonly System.Windows.Threading.DispatcherTimer _noticeTimer = new();
+        private readonly System.Windows.Threading.DispatcherTimer _gameMonitorTimer = new();
+        private readonly DiscordRichPresenceService _discordPresence = DiscordRichPresenceService.FromAppConfiguration();
         private UpdateCheckResult? _latestUpdate;
         private AddonsReconciliationResult _addonsState = new();
         private bool _isBindingGroups;
         private bool _bindGroupsAgain;
         private bool _isLoading;
+        private bool _isWatchingLaunchedGame;
+        private bool _discordShowsInGame;
         private DateTime _noticeExpiresAt;
         private TimeSpan _noticeDuration = TimeSpan.Zero;
 
@@ -80,10 +84,17 @@ namespace DL_Skin_Randomiser
             ResetTopStatus();
             _noticeTimer.Interval = NoticeTickInterval;
             _noticeTimer.Tick += NoticeTimer_Tick;
+            _gameMonitorTimer.Interval = TimeSpan.FromSeconds(8);
+            _gameMonitorTimer.Tick += GameMonitorTimer_Tick;
             Loaded += async (_, _) =>
             {
                 LoadMods();
                 await CheckForUpdatesAsync(showWhenCurrent: false);
+            };
+            Closed += (_, _) =>
+            {
+                _gameMonitorTimer.Stop();
+                _discordPresence.Dispose();
             };
         }
 
@@ -151,6 +162,7 @@ namespace DL_Skin_Randomiser
                 BuildLoadedStatus(_addonsState),
                 NoticeKind.Success);
             LogDiagnosticSnapshot("Profile loaded", BuildLoadedStatus(_addonsState));
+            _discordPresence.ShowLoaded(GetSelectedProfileName(), _mods.Count, _mods.Count(mod => mod.Enabled));
             StatePathText.Text = _statePath;
             _isLoading = false;
         }
@@ -160,11 +172,13 @@ namespace DL_Skin_Randomiser
             var matchedExistingPreset = RandomiseCurrentLoadout();
             if (matchedExistingPreset)
             {
+                _discordPresence.ShowRerolled(GetSelectedProfileName(), _currentLoadout.Count);
                 SetNotice("Preset matched", "This reroll matched a recent preset, so its timestamp was updated and moved to the top.", NoticeKind.Info, showBanner: true);
                 return;
             }
 
             LogDiagnosticSnapshot("Randomise", $"Rerolled {_currentLoadout.Count} hero picks.");
+            _discordPresence.ShowRerolled(GetSelectedProfileName(), _currentLoadout.Count);
             SetNotice("Reroll ready", $"Rerolled {_currentLoadout.Count} hero picks. Apply to Game, then Play when you are happy with them.", NoticeKind.Success, showBanner: true);
         }
 
@@ -185,6 +199,7 @@ namespace DL_Skin_Randomiser
                 RefreshAddonsDiagnostics();
                 var applyStatus = BuildApplyStatus(result);
                 LogDiagnosticSnapshot("Apply complete", applyStatus);
+                _discordPresence.ShowApplied(GetSelectedProfileName(), result.EnabledCount);
                 SetNotice("Apply complete", applyStatus, NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
@@ -219,6 +234,8 @@ namespace DL_Skin_Randomiser
 
                 GameLaunchService.Launch(_gamePath);
                 LogDiagnosticSnapshot("Randomise, Apply & Play launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock.");
+                _discordPresence.ShowPlaying(GetSelectedProfileName(), _currentLoadout.Count);
+                StartGamePresenceWatch();
                 SetNotice("Deadlock launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock. Use Reroll before launch when you want a different set.", NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
@@ -235,6 +252,8 @@ namespace DL_Skin_Randomiser
                 ValidateApplyInputs(requireGamePath: true);
                 GameLaunchService.Launch(_gamePath);
                 LogDiagnosticSnapshot("Play launched", $"Launched Deadlock from {GetSelectedProfileName()} without changing the current loadout.");
+                _discordPresence.ShowPlaying(GetSelectedProfileName(), _currentLoadout.Count);
+                StartGamePresenceWatch();
                 SetNotice("Deadlock launched", "Launched Deadlock without randomising or applying changes.", NoticeKind.Success, showBanner: true);
             }
             catch (Exception ex)
@@ -837,6 +856,7 @@ namespace DL_Skin_Randomiser
             RefreshPresetOptions();
             BindGroups();
             AutoSavePreferences(showStatus: false);
+            _discordPresence.ShowRerolled(GetSelectedProfileName(), _currentLoadout.Count);
             SetNotice("Preset loaded", $"Loaded {preset.Name}. Apply when you are ready.", NoticeKind.Success, showBanner: true);
         }
 
@@ -1208,6 +1228,44 @@ namespace DL_Skin_Randomiser
             // The progress bar value is animated directly; the timer only hides the banner when time expires.
         }
 
+        private void StartGamePresenceWatch()
+        {
+            _isWatchingLaunchedGame = true;
+            _discordShowsInGame = false;
+            _gameMonitorTimer.Stop();
+            _gameMonitorTimer.Start();
+            UpdateGamePresence();
+        }
+
+        private void GameMonitorTimer_Tick(object? sender, EventArgs e)
+        {
+            UpdateGamePresence();
+        }
+
+        private void UpdateGamePresence()
+        {
+            if (!_isWatchingLaunchedGame)
+                return;
+
+            if (IsDeadlockRunning())
+            {
+                if (_discordShowsInGame)
+                    return;
+
+                _discordPresence.ShowInGame(GetSelectedProfileName(), _currentLoadout.Count);
+                _discordShowsInGame = true;
+                return;
+            }
+
+            if (!_discordShowsInGame)
+                return;
+
+            _gameMonitorTimer.Stop();
+            _isWatchingLaunchedGame = false;
+            _discordShowsInGame = false;
+            _discordPresence.ShowLoaded(GetSelectedProfileName(), _mods.Count, _mods.Count(mod => mod.Enabled));
+        }
+
         private void SetNotice(string title, string message, NoticeKind kind = NoticeKind.Info, bool showBanner = false)
         {
             NoticeTitleText.Text = title;
@@ -1438,6 +1496,15 @@ namespace DL_Skin_Randomiser
                 .Any(process =>
                     process.ProcessName.Contains("deadlock-mod-manager", StringComparison.OrdinalIgnoreCase)
                     || process.ProcessName.Contains("Deadlock Mod Manager", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool IsDeadlockRunning()
+        {
+            return Process.GetProcesses()
+                .Any(process =>
+                    process.ProcessName.Equals("deadlock", StringComparison.OrdinalIgnoreCase)
+                    || process.ProcessName.Equals("deadlock_win64", StringComparison.OrdinalIgnoreCase)
+                    || process.ProcessName.Contains("deadlock", StringComparison.OrdinalIgnoreCase));
         }
 
         private ProfilePreferences GetCurrentProfilePreferences()
