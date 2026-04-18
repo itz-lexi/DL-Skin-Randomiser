@@ -214,6 +214,22 @@ namespace DL_Skin_Randomiser
             }
         }
 
+        private void PlayButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ValidateApplyInputs(requireGamePath: true);
+                GameLaunchService.Launch(_gamePath);
+                LogDiagnosticSnapshot("Play launched", $"Launched Deadlock from {GetSelectedProfileName()} without changing the current loadout.");
+                SetNotice("Deadlock launched", "Launched Deadlock without randomising or applying changes.", NoticeKind.Success, showBanner: true);
+            }
+            catch (Exception ex)
+            {
+                LogDiagnosticSnapshot("Play failed", $"Could not launch Deadlock without randomising: {ex.Message}", ex);
+                SetNotice("Launch failed", $"Could not launch Deadlock: {ex.Message}", NoticeKind.Error, showBanner: true);
+            }
+        }
+
         private void ReloadButton_Click(object sender, RoutedEventArgs e)
         {
             LoadMods();

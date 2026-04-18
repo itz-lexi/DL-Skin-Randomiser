@@ -646,6 +646,10 @@
                                         Width="112"
                                         Click="ApplyButton_Click"
                                         Content="Apply to Game" />
+                                <Button x:Name="PlayButton"
+                                        Width="82"
+                                        Click="PlayButton_Click"
+                                        Content="Play" />
                                 <Button x:Name="ReloadButton"
                                         Width="88"
                                         Click="ReloadButton_Click"
