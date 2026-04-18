@@ -339,6 +339,19 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="0,0,0,8" />
         </Style>
+        <Style x:Key="SectionTag" TargetType="Border">
+            <Setter Property="Background" Value="#23272A" />
+            <Setter Property="BorderBrush" Value="#3A4248" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="Margin" Value="8,2,0,0" />
+        </Style>
+        <Style x:Key="SectionTagText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#DCE3E6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
         <Style x:Key="TopPanel" TargetType="Border">
             <Setter Property="Background" Value="#1D2022" />
             <Setter Property="BorderBrush" Value="#34383C" />
@@ -1163,21 +1176,31 @@
                                   Collapsed="HeroSection_Collapsed"
                                   Margin="0,0,0,14">
                             <Expander.Header>
-                                <StackPanel Orientation="Horizontal">
+                                <WrapPanel>
                                     <TextBlock Text="{Binding DisplayHero}"
                                                Foreground="#F4F4F4"
                                                FontSize="18"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding ModCountText}"
-                                               Foreground="#BDBDBD"
-                                               Margin="10,2,0,0" />
-                                    <TextBlock Text="{Binding EnabledCountText}"
-                                               Foreground="#91D18B"
-                                               Margin="10,2,0,0" />
-                                    <TextBlock Text="{Binding IncludedCountText}"
-                                               Foreground="#D5B56E"
-                                               Margin="10,2,0,0" />
-                                </StackPanel>
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center" />
+                                    <Border Style="{StaticResource SectionTag}">
+                                        <TextBlock Text="{Binding SectionKindText}"
+                                                   Style="{StaticResource SectionTagText}" />
+                                    </Border>
+                                    <Border Style="{StaticResource SectionTag}">
+                                        <TextBlock Text="{Binding ModCountText}"
+                                                   Style="{StaticResource SectionTagText}" />
+                                    </Border>
+                                    <Border Style="{StaticResource SectionTag}">
+                                        <TextBlock Text="{Binding EnabledCountText}"
+                                                   Foreground="#91D18B"
+                                                   Style="{StaticResource SectionTagText}" />
+                                    </Border>
+                                    <Border Style="{StaticResource SectionTag}">
+                                        <TextBlock Text="{Binding RandomizerCountText}"
+                                                   Foreground="#D5B56E"
+                                                   Style="{StaticResource SectionTagText}" />
+                                    </Border>
+                                </WrapPanel>
                             </Expander.Header>
 
                             <Border Background="#1B1B1B"

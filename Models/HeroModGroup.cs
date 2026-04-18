@@ -16,9 +16,20 @@ namespace DL_Skin_Randomiser.Models
         public List<DlmmMod> Mods { get; set; } = [];
         public int IncludedCount => Mods.Count(mod => mod.IncludedInRandomizer);
         public int EnabledCount => Mods.Count(mod => mod.Enabled);
+        public bool IsUnknown => string.Equals(Hero, "unknown", StringComparison.OrdinalIgnoreCase) && !IsFolder;
+        public string SectionKindText => IsFolder
+            ? "Folder"
+            : IsUnknown
+                ? "Needs sorting"
+                : "Character";
         public string ModCountText => FormatCount(Mods.Count, "mod");
-        public string EnabledCountText => FormatCount(EnabledCount, "in use");
-        public string IncludedCountText => FormatCount(IncludedCount, "included");
+        public string EnabledCountText => $"In use: {EnabledCount}";
+        public string RandomizerCountText => IsFolder
+            ? "Managed in DLMM"
+            : IsUnknown
+                ? "Not randomised"
+                : $"Randomiser: {IncludedCount}";
+        public string IncludedCountText => RandomizerCountText;
         public string SummaryText => $"{ModCountText} • {EnabledCountText} • {IncludedCountText}";
 
         private static string FormatCount(int count, string label)
