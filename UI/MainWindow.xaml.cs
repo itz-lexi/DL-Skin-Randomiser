@@ -1182,11 +1182,19 @@ namespace DL_Skin_Randomiser
             if (sender is FrameworkElement { DataContext: DlmmMod mod })
             {
                 ApplyNonRandomizerExclusions(mod);
+                EnforceSingleEnabledSkinPerHero(mod);
+                _currentLoadout = BuildCurrentLoadout();
+                RefreshLoadoutSummary();
+                RequestBindGroups();
                 AutoSavePreferences(mod: mod);
                 return;
             }
 
             ApplyNonRandomizerExclusions();
+            EnforceSingleEnabledSkinPerHero();
+            _currentLoadout = BuildCurrentLoadout();
+            RefreshLoadoutSummary();
+            RequestBindGroups();
             AutoSavePreferences();
         }
 
@@ -1208,6 +1216,47 @@ namespace DL_Skin_Randomiser
         {
             if (!string.IsNullOrWhiteSpace(mod.Folder) || NormalizeHero(mod.Hero) == "unknown")
                 mod.IncludedInRandomizer = false;
+        }
+
+        private void EnforceSingleEnabledSkinPerHero(DlmmMod? preferredMod = null)
+        {
+            if (preferredMod is { Enabled: true } && IsRandomizerSkin(preferredMod))
+            {
+                var preferredHero = NormalizeHero(preferredMod.Hero);
+                foreach (var otherMod in _mods.Where(mod =>
+                             !ReferenceEquals(mod, preferredMod)
+                             && IsRandomizerSkin(mod)
+                             && mod.Enabled
+                             && string.Equals(NormalizeHero(mod.Hero), preferredHero, StringComparison.OrdinalIgnoreCase)))
+                {
+                    otherMod.Enabled = false;
+                    UserPreferenceService.SaveMod(_preferencesPath, otherMod, _statePath, _selectedProfileId);
+                }
+
+                return;
+            }
+
+            foreach (var heroGroup in _mods
+                         .Where(mod => IsRandomizerSkin(mod) && mod.Enabled)
+                         .GroupBy(mod => NormalizeHero(mod.Hero))
+                         .Where(group => group.Count() > 1))
+            {
+                var enabledMods = heroGroup.ToList();
+                var keptMod = enabledMods[Random.Shared.Next(enabledMods.Count)];
+                foreach (var mod in enabledMods.Where(mod => !ReferenceEquals(mod, keptMod)))
+                {
+                    mod.Enabled = false;
+                    UserPreferenceService.SaveMod(_preferencesPath, mod, _statePath, _selectedProfileId);
+                }
+            }
+        }
+
+        private static bool IsRandomizerSkin(DlmmMod? mod)
+        {
+            return mod is not null
+                && mod.IncludedInRandomizer
+                && string.IsNullOrWhiteSpace(mod.Folder)
+                && NormalizeHero(mod.Hero) != "unknown";
         }
 
         private void AutoSavePreferences(bool showStatus = true, DlmmMod? mod = null)

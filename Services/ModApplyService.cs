@@ -32,7 +32,8 @@ namespace DL_Skin_Randomiser.Services
                 if (enabledMods.Count <= 1)
                     continue;
 
-                foreach (var extraMod in enabledMods.Skip(1))
+                var keptMod = enabledMods[Random.Shared.Next(enabledMods.Count)];
+                foreach (var extraMod in enabledMods.Where(mod => !ReferenceEquals(mod, keptMod)))
                 {
                     extraMod.Enabled = false;
                     forcedDisabledCount++;
