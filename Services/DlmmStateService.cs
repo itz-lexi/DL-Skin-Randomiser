@@ -37,9 +37,14 @@ namespace DL_Skin_Randomiser.Services
                 Profiles = profiles
             };
 
+            var allModElements = GetModElements(stateElement);
+            result.AllMods = allModElements
+                .Select(modElement => BuildMod(modElement, enabledMods, hasProfileModList: false))
+                .ToList();
+
             var modElements = profileModElements.Count > 0
                 ? GetFreshProfileModElements(profileModElements, localModsByRemoteId)
-                : GetModElements(stateElement);
+                : allModElements;
             if (modElements.Count == 0)
                 return result;
 
@@ -47,29 +52,34 @@ namespace DL_Skin_Randomiser.Services
 
             foreach (var modElement in modElements)
             {
-                var remoteId = TryGetString(modElement, "remoteId");
-                var name = TryGetString(modElement, "name");
-                var isEnabledInProfile = IsEnabled(enabledMods, remoteId);
-
-                var installedVpks = GetStringArray(modElement, "installedVpks");
-                result.Mods.Add(new DlmmMod
-                {
-                    Id = TryGetString(modElement, "id"),
-                    RemoteId = remoteId,
-                    Name = name,
-                    Status = TryGetString(modElement, "status"),
-                    Category = TryGetString(modElement, "category"),
-                    ImageUrl = TryGetFirstString(modElement, "images"),
-                    InstalledVpks = installedVpks.ToList(),
-                    DlmmInstalledVpks = installedVpks.ToList(),
-                    Hero = DetectHero(modElement, name),
-                    IsInSelectedProfile = hasProfileModList || IsInProfile(enabledMods, remoteId),
-                    IsEnabledInDlmmProfile = isEnabledInProfile,
-                    Enabled = isEnabledInProfile
-                });
+                result.Mods.Add(BuildMod(modElement, enabledMods, hasProfileModList));
             }
 
             return result;
+        }
+
+        private static DlmmMod BuildMod(JsonElement modElement, JsonElement? enabledMods, bool hasProfileModList)
+        {
+            var remoteId = TryGetString(modElement, "remoteId");
+            var name = TryGetString(modElement, "name");
+            var isEnabledInProfile = IsEnabled(enabledMods, remoteId);
+            var installedVpks = GetStringArray(modElement, "installedVpks");
+
+            return new DlmmMod
+            {
+                Id = TryGetString(modElement, "id"),
+                RemoteId = remoteId,
+                Name = name,
+                Status = TryGetString(modElement, "status"),
+                Category = TryGetString(modElement, "category"),
+                ImageUrl = TryGetFirstString(modElement, "images"),
+                InstalledVpks = installedVpks.ToList(),
+                DlmmInstalledVpks = installedVpks.ToList(),
+                Hero = DetectHero(modElement, name),
+                IsInSelectedProfile = hasProfileModList || IsInProfile(enabledMods, remoteId),
+                IsEnabledInDlmmProfile = isEnabledInProfile,
+                Enabled = isEnabledInProfile
+            };
         }
 
         private static List<JsonElement> GetProfileModElements(JsonElement stateElement, string profileId)

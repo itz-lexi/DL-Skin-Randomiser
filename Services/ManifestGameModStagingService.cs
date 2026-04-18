@@ -1,12 +1,20 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using DL_Skin_Randomiser.Models;
 
 namespace DL_Skin_Randomiser.Services
 {
     public static class ManifestGameModStagingService
     {
+        private const string QuarantinedSourceSuffix = ".dlskin-source";
+        private static string SourceVaultRoot =>
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "DL-Skin-Randomiser",
+                "SourceVpks");
+
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             WriteIndented = true
@@ -18,7 +26,10 @@ namespace DL_Skin_Randomiser.Services
                 "DL-Skin-Randomiser",
                 "staging-manifest.json");
 
-        public static ApplyResult Stage(string gamePath, IReadOnlyCollection<DlmmMod> mods)
+        public static ApplyResult Stage(
+            string gamePath,
+            IReadOnlyCollection<DlmmMod> mods,
+            IReadOnlyCollection<DlmmMod>? sourceVaultMods = null)
         {
             var result = new ApplyResult
             {
@@ -32,6 +43,10 @@ namespace DL_Skin_Randomiser.Services
                 result.StagingSkippedCount = mods.Count;
                 return result;
             }
+
+            var stagingScopeMods = sourceVaultMods ?? mods;
+            VaultRandomizerSourceVpks(gamePath, addonsPath, stagingScopeMods);
+            var protectedLiveSlots = BuildDlmmManagedLiveSlots(gamePath, addonsPath, stagingScopeMods);
 
             var manifest = LoadManifest();
             var activeManifestEntries = manifest.Entries
@@ -51,7 +66,7 @@ namespace DL_Skin_Randomiser.Services
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var sourceSelections = mods
                 .Where(IsRandomizerOwnedMod)
-                .Select(mod => BuildSourceSelection(addonsPath, mod))
+                .Select(mod => BuildSourceSelection(gamePath, addonsPath, mod))
                 .Where(selection => selection.Sources.Count > 0)
                 .ToList();
             result.StaleSourceVpkSkippedCount = sourceSelections.Sum(selection => selection.StaleSourceCount);
@@ -67,6 +82,7 @@ namespace DL_Skin_Randomiser.Services
             var desiredRemoteIds = enabledOwnedMods
                 .Select(mod => mod.RemoteId)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            ClearKnownRandomizerLiveSlots(addonsPath, ownedMods, result, protectedLiveSlots);
             var stageableRemoteIds = sourceSelectionsByRemoteId.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
             result.EnabledModsWithoutStagedFiles = enabledOwnedMods
                 .Where(mod => !stageableRemoteIds.Contains(mod.RemoteId))
@@ -80,13 +96,20 @@ namespace DL_Skin_Randomiser.Services
                 .SelectMany(mod => sourceSelectionsByRemoteId[mod.RemoteId].Sources.Select(source => new DesiredSource(mod, source)))
                 .ToList();
             var desiredKeys = desiredSources
-                .Select(source => BuildSourceKey(source.Mod.RemoteId, source.Source.Name))
+                .Select(source => BuildSourceKey(source.Mod.RemoteId, GetSourceVpkName(source.Source)))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             foreach (var entry in activeManifestEntries)
             {
                 if (!controlledRemoteIds.Contains(entry.RemoteId))
                     continue;
+
+                var liveSlot = Path.GetFileName(entry.LiveSlot);
+                if (!string.IsNullOrWhiteSpace(liveSlot) && protectedLiveSlots.Contains(liveSlot))
+                {
+                    manifest.Entries.Remove(entry);
+                    continue;
+                }
 
                 var entryKey = BuildSourceKey(entry.RemoteId, entry.SourceFileName);
                 if (desiredKeys.Contains(entryKey) && desiredRemoteIds.Contains(entry.RemoteId))
@@ -112,13 +135,21 @@ namespace DL_Skin_Randomiser.Services
 
             foreach (var source in desiredSources)
             {
+                var sourceFileName = GetSourceVpkName(source.Source);
                 var existingEntry = manifest.Entries.FirstOrDefault(entry =>
                     string.Equals(entry.GamePath, gamePath, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(entry.RemoteId, source.Mod.RemoteId, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(entry.SourceFileName, source.Source.Name, StringComparison.OrdinalIgnoreCase));
+                    && string.Equals(entry.SourceFileName, sourceFileName, StringComparison.OrdinalIgnoreCase));
+                if (existingEntry is not null)
+                {
+                    var existingLiveSlot = Path.GetFileName(existingEntry.LiveSlot);
+                    if (!string.IsNullOrWhiteSpace(existingLiveSlot) && protectedLiveSlots.Contains(existingLiveSlot))
+                        existingEntry = null;
+                }
+
                 var targetSlot = existingEntry?.LiveSlot;
                 if (string.IsNullOrWhiteSpace(targetSlot))
-                    targetSlot = ChooseLiveSlot(source.Source.Name, usedLiveSlots);
+                    targetSlot = ChooseLiveSlot(sourceFileName, usedLiveSlots);
 
                 if (string.IsNullOrWhiteSpace(targetSlot))
                 {
@@ -156,7 +187,7 @@ namespace DL_Skin_Randomiser.Services
                         RemoteId = source.Mod.RemoteId,
                         ModName = source.Mod.Name,
                         SourcePath = source.Source.FullName,
-                        SourceFileName = source.Source.Name,
+                        SourceFileName = sourceFileName,
                         SourceHash = sourceHash,
                         LiveSlot = targetSlot,
                         StagedHash = stagedHash,
@@ -209,6 +240,221 @@ namespace DL_Skin_Randomiser.Services
                     StringComparer.OrdinalIgnoreCase);
         }
 
+        public static StagingRepairResult RepairAppStagedVpks(string statePath, string gamePath, IReadOnlyCollection<DlmmMod> mods)
+        {
+            var result = new StagingRepairResult
+            {
+                ManifestPath = ManifestPath,
+                RequiresDlmmApply = true,
+                Preservation = RepairPreservationService.Preserve(statePath, gamePath)
+            };
+
+            var addonsPath = GetAddonsPath(gamePath);
+            if (string.IsNullOrWhiteSpace(addonsPath) || !Directory.Exists(addonsPath))
+                return result;
+
+            VaultRandomizerSourceVpks(gamePath, addonsPath, mods);
+            var protectedLiveSlots = BuildDlmmManagedRepairLiveSlots(gamePath, addonsPath, mods, result);
+            ClearKnownRandomizerLiveSlots(addonsPath, mods.Where(IsRandomizerOwnedMod).ToList(), result, protectedLiveSlots);
+
+            var manifest = LoadManifest();
+            var entries = manifest.Entries
+                .Where(entry => string.Equals(entry.GamePath, gamePath, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var entry in entries)
+            {
+                var liveSlot = Path.GetFileName(entry.LiveSlot);
+                if (string.IsNullOrWhiteSpace(liveSlot))
+                    continue;
+
+                if (protectedLiveSlots.Contains(liveSlot))
+                {
+                    manifest.Entries.Remove(entry);
+                    continue;
+                }
+
+                var livePath = Path.Combine(addonsPath, liveSlot);
+                if (!File.Exists(livePath))
+                {
+                    result.MissingLiveVpkCount++;
+                    result.RemovedManifestEntryCount++;
+                    manifest.Entries.Remove(entry);
+                    continue;
+                }
+
+                var currentHash = TryGetFileHash(livePath);
+                if (!string.Equals(currentHash, entry.StagedHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.SkippedChangedLiveVpkCount++;
+                    result.SkippedLiveVpks.Add(liveSlot);
+                    continue;
+                }
+
+                File.Delete(livePath);
+                result.RemovedLiveVpkCount++;
+                result.RemovedManifestEntryCount++;
+                result.RemovedLiveVpks.Add(liveSlot);
+                manifest.Entries.Remove(entry);
+            }
+
+            RemoveHashMatchedRandomizerSkinVpks(gamePath, addonsPath, mods, result, protectedLiveSlots);
+            RemoveUnexpectedLiveVpksAfterRepair(addonsPath, result, protectedLiveSlots);
+
+            SaveManifest(manifest);
+            return result;
+        }
+
+        private static HashSet<string> BuildDlmmManagedRepairLiveSlots(string gamePath, string addonsPath, IReadOnlyCollection<DlmmMod> mods, StagingRepairResult result)
+        {
+            var protectedMods = mods
+                .Where(IsDlmmManagedRepairMod)
+                .ToList();
+            result.ExpectedDlmmManagedModCount = protectedMods.Count;
+            var protectedLiveSlots = BuildDlmmManagedLiveSlotsForProtectedMods(gamePath, addonsPath, protectedMods);
+            result.PreservedDlmmLiveVpkCount = protectedLiveSlots
+                .Count(slot => File.Exists(Path.Combine(addonsPath, slot)));
+
+            return protectedLiveSlots;
+        }
+
+        private static HashSet<string> BuildDlmmManagedLiveSlots(string gamePath, string addonsPath, IReadOnlyCollection<DlmmMod> mods)
+        {
+            return BuildDlmmManagedLiveSlotsForProtectedMods(
+                gamePath,
+                addonsPath,
+                mods.Where(IsDlmmManagedRepairMod).ToList());
+        }
+
+        private static HashSet<string> BuildDlmmManagedLiveSlotsForProtectedMods(string gamePath, string addonsPath, IReadOnlyCollection<DlmmMod> protectedMods)
+        {
+            var protectedRemoteIds = protectedMods
+                .Select(mod => mod.RemoteId)
+                .Where(remoteId => !string.IsNullOrWhiteSpace(remoteId))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var protectedLiveSlots = protectedMods
+                .SelectMany(mod => mod.DlmmInstalledVpks.Concat(mod.InstalledVpks))
+                .Select(Path.GetFileName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name!)
+                .Where(IsLoadableLiveVpkName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var loggedSlot in GetProtectedLiveSlotsFromDlmmLog(gamePath, protectedRemoteIds))
+            {
+                protectedLiveSlots.Add(loggedSlot);
+            }
+
+            return protectedLiveSlots;
+        }
+
+        private static void RemoveUnexpectedLiveVpksAfterRepair(string addonsPath, StagingRepairResult result, HashSet<string> protectedLiveSlots)
+        {
+            foreach (var livePath in Directory.EnumerateFiles(addonsPath, "*.vpk", SearchOption.TopDirectoryOnly))
+            {
+                var liveSlot = Path.GetFileName(livePath);
+                if (string.IsNullOrWhiteSpace(liveSlot) || IsRemotePrefixed(liveSlot))
+                    continue;
+
+                if (protectedLiveSlots.Contains(liveSlot))
+                    continue;
+
+                File.Delete(livePath);
+                result.RemovedLiveVpkCount++;
+                result.RemovedUnexpectedLiveVpkCount++;
+                result.RemovedLiveVpks.Add(liveSlot);
+                result.RemovedUnexpectedLiveVpks.Add(liveSlot);
+            }
+        }
+
+        private static void RemoveHashMatchedRandomizerSkinVpks(string gamePath, string addonsPath, IReadOnlyCollection<DlmmMod> mods, StagingRepairResult result, HashSet<string> protectedLiveSlots)
+        {
+            var sourceHashes = mods
+                .Where(IsRandomizerOwnedMod)
+                .SelectMany(mod => BuildSourceSelection(gamePath, addonsPath, mod).Sources)
+                .Select(file => TryGetFileHash(file.FullName))
+                .Where(hash => !string.IsNullOrWhiteSpace(hash))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (sourceHashes.Count == 0)
+                return;
+
+            foreach (var livePath in Directory.EnumerateFiles(addonsPath, "*.vpk", SearchOption.TopDirectoryOnly))
+            {
+                var liveSlot = Path.GetFileName(livePath);
+                if (string.IsNullOrWhiteSpace(liveSlot) || IsRemotePrefixed(liveSlot))
+                    continue;
+
+                if (protectedLiveSlots.Contains(liveSlot))
+                    continue;
+
+                var liveHash = TryGetFileHash(livePath);
+                if (string.IsNullOrWhiteSpace(liveHash) || !sourceHashes.Contains(liveHash))
+                    continue;
+
+                File.Delete(livePath);
+                result.RemovedLiveVpkCount++;
+                result.RemovedMatchedSkinVpkCount++;
+                result.RemovedLiveVpks.Add(liveSlot);
+            }
+        }
+
+        private static void ClearKnownRandomizerLiveSlots(string addonsPath, IReadOnlyCollection<DlmmMod> mods, ApplyResult result)
+        {
+            ClearKnownRandomizerLiveSlots(addonsPath, mods, result, []);
+        }
+
+        private static void ClearKnownRandomizerLiveSlots(string addonsPath, IReadOnlyCollection<DlmmMod> mods, ApplyResult result, HashSet<string> protectedLiveSlots)
+        {
+            foreach (var liveSlot in GetKnownRandomizerLiveSlots(mods))
+            {
+                if (protectedLiveSlots.Contains(liveSlot))
+                    continue;
+
+                var livePath = Path.Combine(addonsPath, liveSlot);
+                if (!File.Exists(livePath))
+                    continue;
+
+                File.Delete(livePath);
+                result.StagedDisabledCount++;
+            }
+        }
+
+        private static void ClearKnownRandomizerLiveSlots(string addonsPath, IReadOnlyCollection<DlmmMod> mods, StagingRepairResult result)
+        {
+            ClearKnownRandomizerLiveSlots(addonsPath, mods, result, []);
+        }
+
+        private static void ClearKnownRandomizerLiveSlots(string addonsPath, IReadOnlyCollection<DlmmMod> mods, StagingRepairResult result, HashSet<string> protectedLiveSlots)
+        {
+            foreach (var liveSlot in GetKnownRandomizerLiveSlots(mods))
+            {
+                if (protectedLiveSlots.Contains(liveSlot))
+                    continue;
+
+                var livePath = Path.Combine(addonsPath, liveSlot);
+                if (!File.Exists(livePath))
+                    continue;
+
+                File.Delete(livePath);
+                result.RemovedLiveVpkCount++;
+                result.RemovedMatchedSkinVpkCount++;
+                result.RemovedLiveVpks.Add(liveSlot);
+            }
+        }
+
+        private static HashSet<string> GetKnownRandomizerLiveSlots(IReadOnlyCollection<DlmmMod> mods)
+        {
+            return mods
+                .Where(IsRandomizerOwnedMod)
+                .SelectMany(mod => mod.DlmmInstalledVpks.Concat(mod.InstalledVpks))
+                .Select(Path.GetFileName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name!)
+                .Where(name => IsLoadableLiveVpkName(name))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
         private static bool IsRandomizerOwnedMod(DlmmMod mod)
         {
             return mod.IncludedInRandomizer
@@ -217,9 +463,25 @@ namespace DL_Skin_Randomiser.Services
                 && !string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static SourceSelection BuildSourceSelection(string addonsPath, DlmmMod mod)
+        private static bool IsVaultableSkinSourceMod(DlmmMod mod)
         {
-            var allRemoteSources = FindAllRemoteSourceVpks(addonsPath, mod).ToList();
+            return IsRandomizerOwnedMod(mod)
+                || (!mod.IsEnabledInDlmmProfile
+                && !string.IsNullOrWhiteSpace(mod.RemoteId)
+                && string.IsNullOrWhiteSpace(mod.Folder)
+                && string.Equals(mod.Category, "Skins", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(mod.Hero, "unknown", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool IsDlmmManagedRepairMod(DlmmMod mod)
+        {
+            return mod.IsEnabledInDlmmProfile
+                && !IsRandomizerOwnedMod(mod);
+        }
+
+        private static SourceSelection BuildSourceSelection(string gamePath, string addonsPath, DlmmMod mod)
+        {
+            var allRemoteSources = FindAllRemoteSourceVpks(gamePath, addonsPath, mod).ToList();
             if (allRemoteSources.Count == 0)
                 return new SourceSelection(mod, [], 0);
 
@@ -227,7 +489,7 @@ namespace DL_Skin_Randomiser.Services
             var currentSources = dlmmSourceNames.Count == 0
                 ? allRemoteSources
                 : allRemoteSources
-                    .Where(file => dlmmSourceNames.Contains(file.Name) || dlmmSourceNames.Contains(StripRemotePrefix(file.Name)))
+                    .Where(file => dlmmSourceNames.Contains(GetSourceVpkName(file)) || dlmmSourceNames.Contains(StripRemotePrefix(GetSourceVpkName(file))))
                     .ToList();
 
             var sourceVpks = currentSources.Count > 0
@@ -237,28 +499,81 @@ namespace DL_Skin_Randomiser.Services
                 ? allRemoteSources.Count - currentSources.Count
                 : 0;
             var selectedSources = sourceVpks
-                .GroupBy(file => StripRemotePrefix(file.Name), StringComparer.OrdinalIgnoreCase)
+                .GroupBy(file => StripRemotePrefix(GetSourceVpkName(file)), StringComparer.OrdinalIgnoreCase)
                 .Select(group => group
                     .OrderByDescending(file => file.LastWriteTimeUtc)
                     .ThenByDescending(file => file.Length)
                     .ThenBy(file => file.Name, StringComparer.OrdinalIgnoreCase)
                     .First())
-                .OrderBy(file => file.Name)
+                .OrderBy(file => GetSourceVpkName(file))
                 .ToList();
 
             return new SourceSelection(mod, selectedSources, staleSourceCount + sourceVpks.Count - selectedSources.Count);
         }
 
-        private static IEnumerable<FileInfo> FindAllRemoteSourceVpks(string addonsPath, DlmmMod mod)
+        private static IEnumerable<FileInfo> FindAllRemoteSourceVpks(string gamePath, string addonsPath, DlmmMod mod)
         {
             if (string.IsNullOrWhiteSpace(addonsPath) || !Directory.Exists(addonsPath))
                 return [];
 
-            return Directory
+            var loadableSources = Directory
                 .EnumerateFiles(addonsPath, $"{mod.RemoteId}_*.vpk", SearchOption.TopDirectoryOnly)
-                .Select(path => new FileInfo(path))
-                .OrderBy(file => file.Name)
+                .Select(path => new FileInfo(path));
+            var quarantinedSources = Directory
+                .EnumerateFiles(addonsPath, $"{mod.RemoteId}_*.vpk{QuarantinedSourceSuffix}", SearchOption.TopDirectoryOnly)
+                .Select(path => new FileInfo(path));
+            var vaultDirectory = GetSourceVaultDirectory(gamePath);
+            var vaultedSources = Directory.Exists(vaultDirectory)
+                ? Directory
+                    .EnumerateFiles(vaultDirectory, $"{mod.RemoteId}_*.vpk", SearchOption.TopDirectoryOnly)
+                    .Select(path => new FileInfo(path))
+                : [];
+
+            return loadableSources
+                .Concat(quarantinedSources)
+                .Concat(vaultedSources)
+                .OrderBy(file => GetSourceVpkName(file))
                 .ToList();
+        }
+
+        private static void VaultRandomizerSourceVpks(string gamePath, string addonsPath, IReadOnlyCollection<DlmmMod> mods)
+        {
+            var vaultDirectory = GetSourceVaultDirectory(gamePath);
+            Directory.CreateDirectory(vaultDirectory);
+
+            foreach (var mod in mods.Where(IsVaultableSkinSourceMod))
+            {
+                var sourcePaths = Directory
+                    .EnumerateFiles(addonsPath, $"{mod.RemoteId}_*.vpk", SearchOption.TopDirectoryOnly)
+                    .Concat(Directory.EnumerateFiles(addonsPath, $"{mod.RemoteId}_*.vpk{QuarantinedSourceSuffix}", SearchOption.TopDirectoryOnly))
+                    .ToList();
+
+                foreach (var source in sourcePaths)
+                {
+                    var sourceName = GetSourceVpkName(new FileInfo(source));
+                    if (string.IsNullOrWhiteSpace(sourceName))
+                        continue;
+
+                    var vaultPath = Path.Combine(vaultDirectory, sourceName);
+                    File.Copy(source, vaultPath, overwrite: true);
+                    File.Delete(source);
+                }
+            }
+        }
+
+        private static string GetSourceVaultDirectory(string gamePath)
+        {
+            var gameKey = string.IsNullOrWhiteSpace(gamePath)
+                ? "default"
+                : Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(gamePath.ToUpperInvariant())))[..16];
+            return Path.Combine(SourceVaultRoot, gameKey);
+        }
+
+        private static string GetSourceVpkName(FileInfo file)
+        {
+            return file.Name.EndsWith(QuarantinedSourceSuffix, StringComparison.OrdinalIgnoreCase)
+                ? file.Name[..^QuarantinedSourceSuffix.Length]
+                : file.Name;
         }
 
         private static HashSet<string> BuildDlmmSourceNameSet(DlmmMod mod)
@@ -350,6 +665,67 @@ namespace DL_Skin_Randomiser.Services
                 : Path.Combine(gamePath, "game", "citadel", "addons");
         }
 
+        private static IEnumerable<string> GetProtectedLiveSlotsFromDlmmLog(string gamePath, HashSet<string> protectedRemoteIds)
+        {
+            if (protectedRemoteIds.Count == 0)
+                yield break;
+
+            var addonsPath = GetAddonsPath(gamePath);
+            var logPath = GetDlmmLogPath();
+            if (string.IsNullOrWhiteSpace(addonsPath) || !File.Exists(logPath))
+                yield break;
+
+            foreach (var line in ReadLogLines(logPath).AsEnumerable().Reverse())
+            {
+                var enabledMatch = EnabledVpkLogRegex.Match(line);
+                if (!enabledMatch.Success)
+                    continue;
+
+                var remoteId = enabledMatch.Groups["remoteId"].Value;
+                if (!protectedRemoteIds.Contains(remoteId))
+                    continue;
+
+                var targetSlot = Path.GetFileName(enabledMatch.Groups["target"].Value.Trim());
+                if (string.IsNullOrWhiteSpace(targetSlot) || IsRemotePrefixed(targetSlot))
+                    continue;
+
+                if (File.Exists(Path.Combine(addonsPath, targetSlot)))
+                    yield return targetSlot;
+            }
+        }
+
+        private static List<string> ReadLogLines(string logPath)
+        {
+            try
+            {
+                using var stream = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream);
+
+                var lines = new List<string>();
+                while (reader.ReadLine() is { } line)
+                    lines.Add(line);
+
+                return lines;
+            }
+            catch (IOException)
+            {
+                return [];
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return [];
+            }
+        }
+
+        private static string GetDlmmLogPath()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "dev.stormix.deadlock-mod-manager",
+                "logs",
+                "deadlock-mod-manager.log");
+        }
+
         private static string BuildSourceKey(string remoteId, string sourceFileName)
         {
             return $"{remoteId}|{sourceFileName}";
@@ -404,6 +780,9 @@ namespace DL_Skin_Randomiser.Services
         private sealed record DesiredSource(DlmmMod Mod, FileInfo Source);
 
         private sealed record SourceSelection(DlmmMod Mod, List<FileInfo> Sources, int StaleSourceCount);
+
+        private static readonly Regex EnabledVpkLogRegex =
+            new(@"Enabled VPK for mod (?<remoteId>\d+):\s+.+?\s+->\s+(?<target>[^\\/:*?""<>|\s]+\.vpk)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
         private sealed class StagingManifest
         {

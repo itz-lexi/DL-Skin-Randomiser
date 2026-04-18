@@ -593,7 +593,7 @@
                                    Foreground="#F7F7F7"
                                    FontSize="20"
                                    FontWeight="Bold" />
-                        <TextBlock Text="Search, reroll, apply, play."
+                        <TextBlock Text="Search, randomise, apply, play."
                                    Foreground="#9EA5AA"
                                    Margin="0,3,0,0" />
                     </StackPanel>
@@ -642,7 +642,7 @@
                                 <Button x:Name="RandomiseButton"
                                         Width="92"
                                         Click="RandomiseButton_Click"
-                                        Content="Reroll" />
+                                        Content="Randomise" />
                                 <Button x:Name="ApplyButton"
                                         Width="112"
                                         Click="ApplyButton_Click"
@@ -651,10 +651,6 @@
                                         Width="82"
                                         Click="PlayButton_Click"
                                         Content="Play" />
-                                <Button x:Name="ReloadButton"
-                                        Width="88"
-                                        Click="ReloadButton_Click"
-                                        Content="Reload" />
                             </WrapPanel>
                         </StackPanel>
                     </Border>
@@ -894,6 +890,139 @@
                                        Margin="0,4,0,0" />
                         </StackPanel>
                     </Border>
+
+                    <Expander x:Name="DangerZoneExpander"
+                              Margin="0,0,8,8"
+                              IsExpanded="False">
+                        <Expander.Header>
+                            <TextBlock Text="Danger zone"
+                                       Foreground="#F4F4F4"
+                                       FontWeight="SemiBold" />
+                        </Expander.Header>
+                        <Border Style="{StaticResource TopPanel}"
+                                Margin="0,8,0,0"
+                                BorderBrush="#6E3944">
+                            <StackPanel>
+                                <TextBlock Text="Last-resort repairs and dev-only checks live here. Close Deadlock first, then use these when the app-staged VPK state looks wrong or diagnostics are needed while testing."
+                                           Foreground="#C9A4AC"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,12" />
+
+                                <StackPanel Margin="0,0,0,12">
+                                    <TextBlock Text="Repair game files"
+                                               Style="{StaticResource FilterLabel}"
+                                               Margin="0,0,0,5" />
+                                    <WrapPanel>
+                                        <Button x:Name="RepairStagedVpksButton"
+                                                Width="160"
+                                                Margin="0,0,8,8"
+                                                Click="RepairStagedVpksButton_Click"
+                                                Content="Reset app-staged VPKs" />
+                                        <TextBlock Width="520"
+                                                   Margin="0,2,0,8"
+                                                   Foreground="#8F989B"
+                                                   FontSize="11"
+                                                   TextWrapping="Wrap"
+                                                   Text="Moves randomiser skin source VPKs into this app's local vault and removes known randomiser live slots. DLMM-managed folder, UI, HUD, and model mods should be repaired by applying/rebuilding in DLMM after this." />
+                                    </WrapPanel>
+                                </StackPanel>
+
+                                <StackPanel x:Name="DevToolsPanel"
+                                            Margin="0,0,0,12">
+                                    <TextBlock Text="Dev tools"
+                                               Style="{StaticResource FilterLabel}"
+                                               Margin="0,0,0,5" />
+                                    <WrapPanel>
+                                        <Button x:Name="ReloadButton"
+                                                Width="88"
+                                                Margin="0,0,8,8"
+                                                Click="ReloadButton_Click"
+                                                Content="Reload" />
+                                        <TextBlock Width="520"
+                                                   Margin="0,2,0,8"
+                                                   Foreground="#8F989B"
+                                                   FontSize="11"
+                                                   TextWrapping="Wrap"
+                                                   Text="Development-only controls for refreshing local state while testing." />
+                                    </WrapPanel>
+                                </StackPanel>
+
+                                <Expander x:Name="AddonsDiagnosticsExpander"
+                                          IsExpanded="False"
+                                          Expanded="AddonsDiagnosticsExpander_Expanded"
+                                          Margin="0,0,0,4">
+                                    <Expander.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Addons diagnostics"
+                                                       Foreground="#F4F4F4"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock x:Name="AddonsDiagnosticsSummaryText"
+                                                       Foreground="#AEB7BA"
+                                                       Margin="10,1,0,0" />
+                                        </StackPanel>
+                                    </Expander.Header>
+                                    <Border Background="#1B1B1B"
+                                            BorderBrush="#303030"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Margin="0,8,0,0"
+                                            Padding="12">
+                                        <StackPanel>
+                                            <TextBlock Text="Live files are what the game can load now. DLMM active means DLMM state and live files agree. App staged means this app placed the file directly. Old DLMM flags are state entries without matching live files."
+                                                       Foreground="#AEB7BA"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,0,0,10" />
+                                            <ItemsControl x:Name="AddonsDiagnosticsList">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Width="330"
+                                                                MinHeight="122"
+                                                                Background="#242424"
+                                                                BorderBrush="{Binding StatusBrush}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="8"
+                                                                Padding="10"
+                                                                Margin="0,0,10,10">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding Status}"
+                                                                           Foreground="{Binding StatusBrush}"
+                                                                           FontWeight="SemiBold" />
+                                                                <TextBlock Text="{Binding ModName}"
+                                                                           Foreground="#F2F2F2"
+                                                                           FontWeight="SemiBold"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           Margin="0,4,0,0" />
+                                                                <TextBlock Text="{Binding LiveSlot, StringFormat=Live: {0}}"
+                                                                           Foreground="#DDE4E6"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           Margin="0,4,0,0" />
+                                                                <TextBlock Text="{Binding Evidence, StringFormat=Evidence: {0}}"
+                                                                           Foreground="#AEB7BA"
+                                                                           TextWrapping="Wrap"
+                                                                           Margin="0,3,0,0" />
+                                                                <TextBlock Text="{Binding Detail}"
+                                                                           Foreground="#8F989B"
+                                                                           TextWrapping="Wrap"
+                                                                           Margin="0,4,0,0" />
+                                                                <TextBlock Text="{Binding RemoteId, StringFormat=Remote ID: {0}}"
+                                                                           Foreground="#6F787B"
+                                                                           Margin="0,4,0,0" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </Expander>
+                            </StackPanel>
+                        </Border>
+                    </Expander>
                 </StackPanel>
 
                 <Grid Margin="0,2,0,0">
@@ -1047,81 +1176,6 @@
                              Margin="0,9,4,0" />
             </Grid>
         </Border>
-
-        <Expander x:Name="AddonsDiagnosticsExpander"
-                  DockPanel.Dock="Top"
-                  IsExpanded="False"
-                  Margin="0,0,0,12">
-            <Expander.Header>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Addons diagnostics"
-                               Foreground="#F4F4F4"
-                               FontSize="16"
-                               FontWeight="SemiBold" />
-                    <TextBlock x:Name="AddonsDiagnosticsSummaryText"
-                               Foreground="#AEB7BA"
-                               Margin="10,2,0,0" />
-                </StackPanel>
-            </Expander.Header>
-            <Border Background="#1B1B1B"
-                    BorderBrush="#303030"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Margin="0,8,0,0"
-                    Padding="12">
-                <StackPanel>
-                    <TextBlock Text="Live files are what the game can load now. DLMM active means DLMM state and live files agree. App staged means this app placed the file directly. Old DLMM flags are state entries without matching live files."
-                               Foreground="#AEB7BA"
-                               TextWrapping="Wrap"
-                               Margin="0,0,0,10" />
-                    <ItemsControl x:Name="AddonsDiagnosticsList">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Width="330"
-                                        MinHeight="122"
-                                        Background="#242424"
-                                        BorderBrush="{Binding StatusBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="10"
-                                        Margin="0,0,10,10">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Status}"
-                                                   Foreground="{Binding StatusBrush}"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding ModName}"
-                                                   Foreground="#F2F2F2"
-                                                   FontWeight="SemiBold"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   Margin="0,4,0,0" />
-                                        <TextBlock Text="{Binding LiveSlot, StringFormat=Live: {0}}"
-                                                   Foreground="#DDE4E6"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   Margin="0,4,0,0" />
-                                        <TextBlock Text="{Binding Evidence, StringFormat=Evidence: {0}}"
-                                                   Foreground="#AEB7BA"
-                                                   TextWrapping="Wrap"
-                                                   Margin="0,3,0,0" />
-                                        <TextBlock Text="{Binding Detail}"
-                                                   Foreground="#8F989B"
-                                                   TextWrapping="Wrap"
-                                                   Margin="0,4,0,0" />
-                                        <TextBlock Text="{Binding RemoteId, StringFormat=Remote ID: {0}}"
-                                                   Foreground="#6F787B"
-                                                   Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
-        </Expander>
 
         <Expander DockPanel.Dock="Top"
                   IsExpanded="False"

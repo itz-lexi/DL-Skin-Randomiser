@@ -5,7 +5,12 @@ namespace DL_Skin_Randomiser.Services
 {
     public static class ModApplyService
     {
-        public static ApplyResult Apply(string statePath, string gamePath, IReadOnlyCollection<DlmmMod> mods, string selectedProfileId)
+        public static ApplyResult Apply(
+            string statePath,
+            string gamePath,
+            IReadOnlyCollection<DlmmMod> mods,
+            string selectedProfileId,
+            IReadOnlyCollection<DlmmMod>? sourceVaultMods = null)
         {
             var profileMods = mods
                 .Where(mod => mod.IsInSelectedProfile)
@@ -59,7 +64,7 @@ namespace DL_Skin_Randomiser.Services
             }
 
             var backupPath = DlmmStateService.SaveEnabledMods(statePath, profileMods, selectedProfileId);
-            var stagingResult = ManifestGameModStagingService.Stage(gamePath, profileMods);
+            var stagingResult = ManifestGameModStagingService.Stage(gamePath, profileMods, sourceVaultMods ?? profileMods);
 
             return new ApplyResult
             {

@@ -41,6 +41,7 @@ namespace DL_Skin_Randomiser
         private string _gamePath = "";
         private string _selectedProfileId = "";
         private List<DlmmMod> _mods = [];
+        private List<DlmmMod> _allMods = [];
         private List<LoadoutPick> _currentLoadout = [];
         private string _expandedSectionKey = "";
         private string _folderOptionsSignature = "";
@@ -60,6 +61,7 @@ namespace DL_Skin_Randomiser
         private bool _isWatchingLaunchedGame;
         private bool _discordShowsInGame;
         private bool _isShuttingDown;
+        private DateTime _lastPhysicalAddonsRefreshUtc = DateTime.MinValue;
         private DateTime _noticeExpiresAt;
         private TimeSpan _noticeDuration = TimeSpan.Zero;
 
@@ -93,6 +95,7 @@ namespace DL_Skin_Randomiser
                 LoadMods();
                 await CheckForUpdatesAsync(showWhenCurrent: false);
             };
+            Activated += (_, _) => RefreshPhysicalAddonsStateIfDiagnosticsOpen();
             Closing += (_, _) => ShutdownApplicationServices();
             Closed += (_, _) => Application.Current.Shutdown();
         }
@@ -103,6 +106,9 @@ namespace DL_Skin_Randomiser
                 ? Visibility.Visible
                 : Visibility.Collapsed;
             ReloadButton.Visibility = IsDevBuild
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            DevToolsPanel.Visibility = IsDevBuild
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         }
@@ -134,6 +140,10 @@ namespace DL_Skin_Randomiser
             _gamePath = snapshot.GamePath;
             _selectedProfileId = snapshot.SelectedProfileId;
             ProfileOptions = snapshot.Profiles;
+            _allMods = snapshot.AllMods
+                .OrderBy(mod => mod.Hero)
+                .ThenBy(mod => mod.Name)
+                .ToList();
             _mods = snapshot.Mods
                 .Where(mod => mod.IsInSelectedProfile)
                 .OrderBy(mod => mod.Hero)
@@ -142,8 +152,10 @@ namespace DL_Skin_Randomiser
 
             _addonsState = AddonsInventoryService.ApplyPhysicalState(_gamePath, _mods);
             UserPreferenceService.Apply(_mods, _preferences, _selectedProfileId);
+            SyncVisibleRandomizerSettingsToAllMods();
             var profilePreferences = GetCurrentProfilePreferences();
             _currentLoadout = profilePreferences.LastSessionLoadout;
+            ApplyLoadout(_currentLoadout);
             _expandedSectionKey = profilePreferences.ExpandedSections?.FirstOrDefault() ?? "";
             RefreshCharacterOptions();
             RefreshFolderOptions();
@@ -168,17 +180,7 @@ namespace DL_Skin_Randomiser
 
         private void RandomiseButton_Click(object sender, RoutedEventArgs e)
         {
-            var matchedExistingPreset = RandomiseCurrentLoadout();
-            if (matchedExistingPreset)
-            {
-                _discordPresence.ShowRerolled(GetSelectedProfileName(), _currentLoadout.Count);
-                SetNotice("Preset matched", "This reroll matched a recent preset, so its timestamp was updated and moved to the top.", NoticeKind.Info, showBanner: true);
-                return;
-            }
-
-            LogDiagnosticSnapshot("Randomise", $"Rerolled {_currentLoadout.Count} hero picks.");
-            _discordPresence.ShowRerolled(GetSelectedProfileName(), _currentLoadout.Count);
-            SetNotice("Reroll ready", $"Rerolled {_currentLoadout.Count} hero picks. Apply to Game, then Play when you are happy with them.", NoticeKind.Success, showBanner: true);
+            RandomiseLoadout(showNotice: true);
         }
 
         private void ApplyButton_Click(object sender, RoutedEventArgs e)
@@ -186,20 +188,10 @@ namespace DL_Skin_Randomiser
             try
             {
                 ValidateApplyInputs(requireGamePath: false);
-                UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
-                var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
-                if (result.WrittenCount == 0)
-                {
-                    SetNotice("Nothing applied", $"No mods were written to {GetSelectedProfileName()} because this profile has no visible mod entries.", NoticeKind.Warning, showBanner: true);
+                if (!EnsureDlmmClosedBeforeGameWrite("Apply to Game"))
                     return;
-                }
 
-                _addonsState = AddonsInventoryService.ApplyPhysicalState(_gamePath, _mods);
-                RefreshAddonsDiagnostics();
-                var applyStatus = BuildApplyStatus(result);
-                LogDiagnosticSnapshot("Apply complete", applyStatus);
-                _discordPresence.ShowApplied(GetSelectedProfileName(), result.EnabledCount);
-                SetNotice("Apply complete", applyStatus, NoticeKind.Success, showBanner: true);
+                ApplyLoadoutToGame(showSuccessNotice: true);
             }
             catch (Exception ex)
             {
@@ -213,6 +205,9 @@ namespace DL_Skin_Randomiser
             try
             {
                 ValidateApplyInputs(requireGamePath: true);
+                if (!EnsureDlmmClosedBeforeGameWrite("Randomise, Apply & Play"))
+                    return;
+
                 if (IsDeadlockRunning())
                 {
                     SetNotice(
@@ -224,22 +219,10 @@ namespace DL_Skin_Randomiser
                 }
 
                 RandomisePlayButton.IsEnabled = false;
-                if (_currentLoadout.Count == 0)
-                    RandomiseCurrentLoadout();
-
-                UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
-                var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
-                _addonsState = AddonsInventoryService.ApplyPhysicalState(_gamePath, _mods);
-                RefreshAddonsDiagnostics();
-                if (result.EnabledModsWithoutStagedFilesCount > 0)
-                {
-                    SetNotice(
-                        "Some skins were not staged",
-                        BuildMissingStagedFilesStatus(result),
-                        NoticeKind.Warning,
-                        showBanner: true);
+                RandomiseLoadout(showNotice: false);
+                var result = ApplyLoadoutToGame(showSuccessNotice: false);
+                if (result is null)
                     return;
-                }
 
                 if (result.RequiresDlmmApply)
                 {
@@ -252,18 +235,10 @@ namespace DL_Skin_Randomiser
                     return;
                 }
 
-                SetNotice(
-                    "Launching soon",
-                    "Applied the loadout. Giving staged files a moment before launching Deadlock.",
-                    NoticeKind.Info,
-                    showBanner: true);
+                SetNotice("Launching soon", "Applied the loadout. Giving staged files a moment before launching Deadlock.", NoticeKind.Info, showBanner: true);
                 await Task.Delay(GameLaunchSettleDelay);
 
-                GameLaunchService.Launch(_gamePath);
-                LogDiagnosticSnapshot("Randomise, Apply & Play launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock.");
-                _discordPresence.ShowPlaying(GetSelectedProfileName(), _currentLoadout.Count);
-                StartGamePresenceWatch();
-                SetNotice("Deadlock launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock. Use Reroll before launch when you want a different set.", NoticeKind.Success, showBanner: true);
+                LaunchGame("Randomise, Apply & Play launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock.", "Applied the current loadout and launched Deadlock. Use Randomise before launch when you want a different set.");
             }
             catch (Exception ex)
             {
@@ -281,11 +256,7 @@ namespace DL_Skin_Randomiser
             try
             {
                 ValidateApplyInputs(requireGamePath: true);
-                GameLaunchService.Launch(_gamePath);
-                LogDiagnosticSnapshot("Play launched", $"Launched Deadlock from {GetSelectedProfileName()} without changing the current loadout.");
-                _discordPresence.ShowPlaying(GetSelectedProfileName(), _currentLoadout.Count);
-                StartGamePresenceWatch();
-                SetNotice("Deadlock launched", "Launched Deadlock without randomising or applying changes.", NoticeKind.Success, showBanner: true);
+                LaunchGame("Play launched", $"Launched Deadlock from {GetSelectedProfileName()} without changing the current loadout.", "Launched Deadlock without randomising or applying changes.");
             }
             catch (Exception ex)
             {
@@ -367,6 +338,45 @@ namespace DL_Skin_Randomiser
             {
                 LogDiagnosticSnapshot("Backup failed", $"Could not back up app setup: {ex.Message}", ex);
                 SetNotice("Backup failed", $"Could not back up app setup: {ex.Message}", NoticeKind.Error, showBanner: true);
+            }
+        }
+
+        private void RepairStagedVpksButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ValidateApplyInputs(requireGamePath: true);
+                if (!EnsureDlmmClosedBeforeGameWrite("Reset app-staged VPKs"))
+                    return;
+
+                if (IsDeadlockRunning())
+                {
+                    SetNotice(
+                        "Close Deadlock first",
+                        "Close Deadlock before repairing staged VPKs so the game is not reading files while they are removed.",
+                        NoticeKind.Warning,
+                        showBanner: true);
+                    return;
+                }
+
+                var confirmation = MessageBox.Show(
+                    "Reset app-staged VPKs?\n\nThis moves randomiser skin source VPKs into this app's local vault so Deadlock cannot load every downloaded skin at once, then removes known randomiser live slots and app-staged files. Folder, UI, HUD, unknown, and non-randomiser mods are left alone.\n\nAfter this, apply/rebuild in DLMM to restore DLMM-managed folder, UI, HUD, and model mods.",
+                    "Reset app-staged VPKs",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (confirmation != MessageBoxResult.Yes)
+                    return;
+
+                var result = ManifestGameModStagingService.RepairAppStagedVpks(_statePath, _gamePath, GetSourceVaultMods());
+                _addonsState = AddonsInventoryService.ApplyPhysicalState(_gamePath, _mods);
+                RefreshAddonsDiagnostics();
+                LogDiagnosticSnapshot("Repair app-staged VPKs", BuildRepairStatus(result));
+                SetNotice("Repair complete", BuildRepairStatus(result), NoticeKind.Success, showBanner: true);
+            }
+            catch (Exception ex)
+            {
+                LogDiagnosticSnapshot("Repair app-staged VPKs failed", $"Could not repair app-staged VPKs: {ex.Message}", ex);
+                SetNotice("Repair failed", $"Could not repair app-staged VPKs: {ex.Message}", NoticeKind.Error, showBanner: true);
             }
         }
 
@@ -766,6 +776,61 @@ namespace DL_Skin_Randomiser
             return matchedExistingPreset;
         }
 
+        private bool RandomiseLoadout(bool showNotice)
+        {
+            var matchedExistingPreset = RandomiseCurrentLoadout();
+            _discordPresence.ShowRerolled(GetSelectedProfileName(), _currentLoadout.Count);
+
+            if (!showNotice)
+                return matchedExistingPreset;
+
+            if (matchedExistingPreset)
+            {
+                SetNotice("Preset matched", "This randomised loadout matched a recent preset, so its timestamp was updated and moved to the top.", NoticeKind.Info, showBanner: true);
+                return matchedExistingPreset;
+            }
+
+            LogDiagnosticSnapshot("Randomise", $"Randomised {_currentLoadout.Count} hero picks.");
+            SetNotice("Randomise ready", $"Randomised {_currentLoadout.Count} hero picks. Apply to Game, then Play when you are happy with them.", NoticeKind.Success, showBanner: true);
+            return matchedExistingPreset;
+        }
+
+        private ApplyResult? ApplyLoadoutToGame(bool showSuccessNotice)
+        {
+            UserPreferenceService.Save(_preferencesPath, _mods, _statePath, _selectedProfileId);
+            var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId, GetSourceVaultMods());
+            if (result.WrittenCount == 0)
+            {
+                SetNotice("Nothing applied", $"No mods were written to {GetSelectedProfileName()} because this profile has no visible mod entries.", NoticeKind.Warning, showBanner: true);
+                return null;
+            }
+
+            _addonsState = AddonsInventoryService.ApplyPhysicalState(_gamePath, _mods);
+            RefreshAddonsDiagnostics();
+            if (result.EnabledModsWithoutStagedFilesCount > 0)
+            {
+                SetNotice("Some skins were not staged", BuildMissingStagedFilesStatus(result), NoticeKind.Warning, showBanner: true);
+                return null;
+            }
+
+            var applyStatus = BuildApplyStatus(result);
+            LogDiagnosticSnapshot("Apply complete", applyStatus);
+            _discordPresence.ShowApplied(GetSelectedProfileName(), result.EnabledCount);
+            if (showSuccessNotice)
+                SetNotice("Apply complete", applyStatus, NoticeKind.Success, showBanner: true);
+
+            return result;
+        }
+
+        private void LaunchGame(string diagnosticAction, string diagnosticMessage, string successMessage)
+        {
+            GameLaunchService.Launch(_gamePath);
+            LogDiagnosticSnapshot(diagnosticAction, diagnosticMessage);
+            _discordPresence.ShowPlaying(GetSelectedProfileName(), _currentLoadout.Count);
+            StartGamePresenceWatch();
+            SetNotice("Deadlock launched", successMessage, NoticeKind.Success, showBanner: true);
+        }
+
         private List<LoadoutPick> BuildCurrentLoadout()
         {
             return _mods
@@ -848,6 +913,54 @@ namespace DL_Skin_Randomiser
                 $"{_addonsState.LiveSlotCount} live VPKs • {_addonsState.AppStagedModCount} app staged • {_addonsState.LogMatchedModCount} DLMM log matched • {_addonsState.HashMatchedModCount} hash matched • {_addonsState.ConfirmedModCount + _addonsState.ProfileDisambiguatedModCount} likely live • {_addonsState.SlotOnlyGuessCount} weak guesses • {_addonsState.UnmatchedLiveSlotCount} unmatched • {_addonsState.StateOnlyModCount} old DLMM flags";
         }
 
+        private void RefreshPhysicalAddonsStateIfDiagnosticsOpen(bool force = false)
+        {
+            if (_isLoading || !AddonsDiagnosticsExpander.IsExpanded)
+                return;
+
+            if (!force && DateTime.UtcNow - _lastPhysicalAddonsRefreshUtc < TimeSpan.FromSeconds(2))
+                return;
+
+            _addonsState = AddonsInventoryService.ApplyPhysicalState(_gamePath, _mods);
+            _lastPhysicalAddonsRefreshUtc = DateTime.UtcNow;
+            RefreshAddonsDiagnostics();
+        }
+
+        private void AddonsDiagnosticsExpander_Expanded(object sender, RoutedEventArgs e)
+        {
+            RefreshPhysicalAddonsStateIfDiagnosticsOpen(force: true);
+        }
+
+        private IReadOnlyCollection<DlmmMod> GetSourceVaultMods()
+        {
+            return _allMods.Count > 0
+                ? _allMods
+                : _mods;
+        }
+
+        private void SyncVisibleRandomizerSettingsToAllMods()
+        {
+            if (_allMods.Count == 0 || _mods.Count == 0)
+                return;
+
+            var visibleModsByRemoteId = _mods
+                .Where(mod => !string.IsNullOrWhiteSpace(mod.RemoteId))
+                .GroupBy(mod => mod.RemoteId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var mod in _allMods)
+            {
+                if (string.IsNullOrWhiteSpace(mod.RemoteId)
+                    || !visibleModsByRemoteId.TryGetValue(mod.RemoteId, out var visibleMod))
+                {
+                    continue;
+                }
+
+                mod.Folder = visibleMod.Folder;
+                mod.IncludedInRandomizer = visibleMod.IncludedInRandomizer;
+            }
+        }
+
         private void LogDiagnosticSnapshot(string action, string message = "", Exception? exception = null)
         {
             AppDiagnosticLogService.WriteSnapshot(
@@ -867,7 +980,7 @@ namespace DL_Skin_Randomiser
         {
             if (_currentLoadout.Count == 0)
             {
-                SetNotice("No preset to save", "Reroll or apply a loadout before saving it as a preset.", NoticeKind.Warning, showBanner: true);
+                SetNotice("No preset to save", "Randomise or apply a loadout before saving it as a preset.", NoticeKind.Warning, showBanner: true);
                 return;
             }
 
@@ -921,12 +1034,17 @@ namespace DL_Skin_Randomiser
 
         private void ApplyPreset(LoadoutPreset preset)
         {
-            var selectedRemoteIds = preset.Picks
+            ApplyLoadout(preset.Picks);
+        }
+
+        private void ApplyLoadout(IReadOnlyCollection<LoadoutPick> picks)
+        {
+            var selectedRemoteIds = picks
                 .Select(pick => pick.RemoteId)
                 .Where(remoteId => !string.IsNullOrWhiteSpace(remoteId))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            var heroes = preset.Picks
+            var heroes = picks
                 .Select(pick => NormalizeHero(pick.Hero))
                 .Where(hero => !string.IsNullOrWhiteSpace(hero) && hero != "unknown")
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -1607,12 +1725,60 @@ namespace DL_Skin_Randomiser
             return $"{listedNames} had no source VPK to stage. Open DLMM and apply/rebuild, or check diagnostics before launching.";
         }
 
+        private static string BuildRepairStatus(StagingRepairResult result)
+        {
+            var status = result.RemovedLiveVpkCount == 0
+                ? "No app-managed live VPKs needed removing."
+                : $"Removed {result.RemovedLiveVpkCount} live VPK{(result.RemovedLiveVpkCount == 1 ? "" : "s")} during repair.";
+
+            if (result.RemovedMatchedSkinVpkCount > 0)
+                status += $" {result.RemovedMatchedSkinVpkCount} matched current randomiser skin source file{(result.RemovedMatchedSkinVpkCount == 1 ? "" : "s")}.";
+
+            if (result.ExpectedDlmmManagedModCount > 0)
+                status += $" Expected {result.ExpectedDlmmManagedModCount} DLMM-managed enabled mod{(result.ExpectedDlmmManagedModCount == 1 ? "" : "s")} to remain.";
+
+            if (result.PreservedDlmmLiveVpkCount > 0)
+                status += $" Preserved {result.PreservedDlmmLiveVpkCount} known DLMM live VPK{(result.PreservedDlmmLiveVpkCount == 1 ? "" : "s")}.";
+
+            if (result.RemovedUnexpectedLiveVpkCount > 0)
+            {
+                var removed = string.Join(", ", result.RemovedUnexpectedLiveVpks.Take(3));
+                var extra = result.RemovedUnexpectedLiveVpkCount > 3
+                    ? $" and {result.RemovedUnexpectedLiveVpkCount - 3} more"
+                    : "";
+                status += $" Removed {result.RemovedUnexpectedLiveVpkCount} unexpected live VPK{(result.RemovedUnexpectedLiveVpkCount == 1 ? "" : "s")} ({removed}{extra}).";
+            }
+
+            if (result.MissingLiveVpkCount > 0)
+                status += $" Cleaned {result.MissingLiveVpkCount} stale manifest entr{(result.MissingLiveVpkCount == 1 ? "y" : "ies")} for files that were already gone.";
+
+            if (result.SkippedChangedLiveVpkCount > 0)
+            {
+                var skipped = string.Join(", ", result.SkippedLiveVpks.Take(3));
+                var extra = result.SkippedChangedLiveVpkCount > 3
+                    ? $" and {result.SkippedChangedLiveVpkCount - 3} more"
+                    : "";
+                status += $" Skipped {result.SkippedChangedLiveVpkCount} changed file{(result.SkippedChangedLiveVpkCount == 1 ? "" : "s")} ({skipped}{extra}) because they no longer match the app manifest.";
+            }
+
+            if (result.RemovedLiveVpkCount > 0 || result.MissingLiveVpkCount > 0)
+                status += " Apply/rebuild in DLMM next to restore DLMM-managed folder, UI, HUD, and model mods.";
+
+            if (!string.IsNullOrWhiteSpace(result.Preservation.BackupDirectory))
+            {
+                status += $" Repair safety backup created: {result.Preservation.BackupDirectory}.";
+                if (result.Preservation.GameInfoBackupCount > 0)
+                    status += $" Preserved {result.Preservation.GameInfoBackupCount} gameinfo file{(result.Preservation.GameInfoBackupCount == 1 ? "" : "s")}.";
+                if (result.Preservation.DlmmLaunchSettingCount > 0)
+                    status += $" Captured {result.Preservation.DlmmLaunchSettingCount} DLMM launch setting{(result.Preservation.DlmmLaunchSettingCount == 1 ? "" : "s")}.";
+            }
+
+            return status;
+        }
+
         private static bool IsDlmmRunning()
         {
-            return Process.GetProcesses()
-                .Any(process =>
-                    process.ProcessName.Contains("deadlock-mod-manager", StringComparison.OrdinalIgnoreCase)
-                    || process.ProcessName.Contains("Deadlock Mod Manager", StringComparison.OrdinalIgnoreCase));
+            return GetDlmmProcesses().Count > 0;
         }
 
         private static bool IsDeadlockRunning()
@@ -1620,8 +1786,156 @@ namespace DL_Skin_Randomiser
             return Process.GetProcesses()
                 .Any(process =>
                     process.ProcessName.Equals("deadlock", StringComparison.OrdinalIgnoreCase)
-                    || process.ProcessName.Equals("deadlock_win64", StringComparison.OrdinalIgnoreCase)
-                    || process.ProcessName.Contains("deadlock", StringComparison.OrdinalIgnoreCase));
+                    || process.ProcessName.Equals("deadlock_win64", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private bool EnsureDlmmClosedBeforeGameWrite(string actionName)
+        {
+            var dlmmProcesses = GetDlmmProcesses();
+            if (dlmmProcesses.Count == 0)
+                return true;
+
+            var confirmation = MessageBox.Show(
+                $"{actionName} needs DLMM closed first.\n\nDLMM can keep state in memory or rebuild files while this app is applying changes, which can stop skins from changing.\n\nClose DLMM now?",
+                "Close DLMM",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (confirmation != MessageBoxResult.Yes)
+            {
+                SetNotice("DLMM still open", "Close DLMM, then try again so the app can apply changes cleanly.", NoticeKind.Warning, showBanner: true);
+                return false;
+            }
+
+            var remaining = CloseDlmmProcesses(dlmmProcesses);
+            if (remaining.Count == 0)
+            {
+                SetNotice("DLMM closed", "DLMM was closed before applying changes.", NoticeKind.Info, showBanner: true);
+                return true;
+            }
+
+            var names = string.Join(", ", remaining.Select(process => process.ProcessName).Distinct(StringComparer.OrdinalIgnoreCase));
+            SetNotice("Could not close DLMM", $"DLMM is still running ({names}). Close it manually, then try again.", NoticeKind.Warning, showBanner: true);
+            return false;
+        }
+
+        private static List<Process> GetDlmmProcesses()
+        {
+            return Process.GetProcesses()
+                .Where(IsDlmmProcess)
+                .ToList();
+        }
+
+        private static bool IsDlmmProcess(Process process)
+        {
+            var processName = process.ProcessName;
+            var title = GetProcessTitle(process);
+            var path = GetProcessPath(process);
+
+            return ContainsDlmmIdentifier(processName)
+                || ContainsDlmmIdentifier(title)
+                || ContainsDlmmIdentifier(path);
+        }
+
+        private static bool ContainsDlmmIdentifier(string value)
+        {
+            return value.Contains("deadlock-mod-manager", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("deadlock mod manager", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("dev.stormix.deadlock-mod-manager", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static List<Process> CloseDlmmProcesses(List<Process> processes)
+        {
+            foreach (var process in processes)
+            {
+                try
+                {
+                    if (process.HasExited)
+                        continue;
+
+                    if (process.MainWindowHandle != IntPtr.Zero)
+                        process.CloseMainWindow();
+                }
+                catch
+                {
+                    // Fall through to the force-close pass.
+                }
+            }
+
+            WaitForProcessesToExit(processes, milliseconds: 4000);
+
+            foreach (var process in processes)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                    // Report anything that survives below.
+                }
+            }
+
+            WaitForProcessesToExit(processes, milliseconds: 4000);
+
+            return processes
+                .Where(process =>
+                {
+                    try
+                    {
+                        return !process.HasExited;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                })
+                .ToList();
+        }
+
+        private static void WaitForProcessesToExit(List<Process> processes, int milliseconds)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(milliseconds);
+            foreach (var process in processes)
+            {
+                var remaining = deadline - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                    return;
+
+                try
+                {
+                    if (!process.HasExited)
+                        process.WaitForExit((int)remaining.TotalMilliseconds);
+                }
+                catch
+                {
+                    // Process may have exited between checks.
+                }
+            }
+        }
+
+        private static string GetProcessTitle(Process process)
+        {
+            try
+            {
+                return process.MainWindowTitle ?? "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private static string GetProcessPath(Process process)
+        {
+            try
+            {
+                return process.MainModule?.FileName ?? "";
+            }
+            catch
+            {
+                return "";
+            }
         }
 
         private ProfilePreferences GetCurrentProfilePreferences()
