@@ -67,6 +67,13 @@ namespace DL_Skin_Randomiser.Services
             var desiredRemoteIds = enabledOwnedMods
                 .Select(mod => mod.RemoteId)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var stageableRemoteIds = sourceSelectionsByRemoteId.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            result.EnabledModsWithoutStagedFiles = enabledOwnedMods
+                .Where(mod => !stageableRemoteIds.Contains(mod.RemoteId))
+                .Select(mod => mod.Name)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            result.EnabledModsWithoutStagedFilesCount = result.EnabledModsWithoutStagedFiles.Count;
 
             var desiredSources = enabledOwnedMods
                 .Where(mod => sourceSelectionsByRemoteId.ContainsKey(mod.RemoteId))

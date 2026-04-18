@@ -15,6 +15,7 @@ namespace DL_Skin_Randomiser.Services
 
         private readonly string _clientId;
         private readonly string _gitHubUrl;
+        private readonly Random _random = new();
         private readonly SemaphoreSlim _mutex = new(1, 1);
         private NamedPipeClientStream? _pipe;
         private bool _isDisposed;
@@ -40,42 +41,80 @@ namespace DL_Skin_Randomiser.Services
 
         public void ShowLoaded(string profileName, int modCount, int enabledCount)
         {
-            SetActivity(
-                "Picking tonight's disguise",
-                $"{profileName} - hideout wardrobe open");
+            SetActivity(profileName, [
+                ("Picking tonight's disguise", "hideout wardrobe open"),
+                ("Consulting the outfit board", "very serious fashion strategy"),
+                ("Planning a clean entrance", "no promises on the exit"),
+                ("Choosing the least suspicious jacket", "probably still suspicious")
+            ]);
         }
 
         public void ShowRerolled(string profileName, int pickCount)
         {
-            SetActivity(
-                "Shuffling the wardrobe",
-                $"{profileName} - fashion crimes pending");
+            SetActivity(profileName, [
+                ("Shuffling the wardrobe", "fashion crimes pending"),
+                ("Rerolling the closet", "the hideout approves maybe"),
+                ("Auditioning disguises", "one of these has to work"),
+                ("Letting chaos pick the fit", "style by dice roll")
+            ]);
         }
 
         public void ShowApplied(string profileName, int enabledCount)
         {
-            SetActivity(
-                "Packing the lookout bag",
-                $"{profileName} - ready for the streets");
+            SetActivity(profileName, [
+                ("Packing the lookout bag", "ready for the streets"),
+                ("Locking in the disguise", "too late to change hats"),
+                ("Leaving the mirror alone", "confidence selected"),
+                ("Staging the outfit reveal", "dramatic entrance pending")
+            ]);
         }
 
         public void ShowPlaying(string profileName, int pickCount)
         {
-            SetActivity(
-                "Heading out from the hideout",
-                $"{profileName} - no outfit regrets");
+            SetActivity(profileName, [
+                ("Heading out from the hideout", "no outfit regrets"),
+                ("Taking the fit outside", "public safety uncertain"),
+                ("Leaving before another reroll", "heroic restraint"),
+                ("Stepping into the city", "looking suspiciously curated")
+            ]);
         }
 
         public void ShowInGame(string profileName, int pickCount)
         {
-            SetActivity(
-                "In the hideout",
-                $"{profileName} - doing important outfit business");
+            SetActivity(profileName, [
+                ("In the hideout", "doing important outfit business"),
+                ("Out causing wardrobe problems", "the streets were warned"),
+                ("Field-testing the disguise", "blend in by standing out"),
+                ("Busy looking suspicious", "professionally, of course")
+            ]);
         }
 
         public void ShowIdle()
         {
-            SetActivity("Browsing the wardrobe", "One more reroll. Probably.");
+            var line = Pick([
+                ("Browsing the wardrobe", "One more reroll. Probably."),
+                ("Hovering over the closet", "nothing good happens quickly"),
+                ("Waiting in the hideout", "the coat rack fears them"),
+                ("Considering poor decisions", "stylishly")
+            ]);
+            SetActivity(line.Details, line.State);
+        }
+
+        private void SetActivity(string profileName, IReadOnlyList<(string Details, string State)> lines)
+        {
+            var line = Pick(lines);
+            SetActivity(line.Details, $"{profileName} - {line.State}");
+        }
+
+        private (string Details, string State) Pick(IReadOnlyList<(string Details, string State)> lines)
+        {
+            if (lines.Count == 0)
+                return ("Browsing the wardrobe", "One more reroll. Probably.");
+
+            lock (_random)
+            {
+                return lines[_random.Next(lines.Count)];
+            }
         }
 
         private void SetActivity(string details, string state)
@@ -147,6 +186,7 @@ namespace DL_Skin_Randomiser.Services
                     },
                     nonce = Guid.NewGuid().ToString("N")
                 });
+                _ = await ReadFrameAsync(TimeSpan.FromSeconds(1));
             }
             catch
             {

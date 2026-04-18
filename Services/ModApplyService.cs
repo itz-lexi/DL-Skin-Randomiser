@@ -68,6 +68,8 @@ namespace DL_Skin_Randomiser.Services
                 StagedEnabledCount = stagingResult.StagedEnabledCount,
                 StagedDisabledCount = stagingResult.StagedDisabledCount,
                 StagingSkippedCount = stagingResult.StagingSkippedCount,
+                EnabledModsWithoutStagedFilesCount = stagingResult.EnabledModsWithoutStagedFilesCount,
+                EnabledModsWithoutStagedFiles = stagingResult.EnabledModsWithoutStagedFiles,
                 StaleSourceVpkSkippedCount = stagingResult.StaleSourceVpkSkippedCount,
                 GameFilesStaged = stagingResult.GameFilesStaged,
                 RequiresDlmmApply = stagingResult.RequiresDlmmApply,

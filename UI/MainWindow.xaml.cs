@@ -28,6 +28,7 @@ namespace DL_Skin_Randomiser
         private static readonly TimeSpan NoticeTickInterval = TimeSpan.FromMilliseconds(50);
         private static readonly TimeSpan NoticeAnimationDuration = TimeSpan.FromMilliseconds(260);
         private static readonly TimeSpan NoticeDisplayDuration = TimeSpan.FromSeconds(20);
+        private static readonly TimeSpan GameLaunchSettleDelay = TimeSpan.FromSeconds(2);
 
         private readonly string _preferencesPath = UserPreferenceService.DefaultPreferencesPath;
         private readonly string _appVersion = GetAppVersion();
@@ -209,11 +210,22 @@ namespace DL_Skin_Randomiser
             }
         }
 
-        private void RandomisePlayButton_Click(object sender, RoutedEventArgs e)
+        private async void RandomisePlayButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 ValidateApplyInputs(requireGamePath: true);
+                if (IsDeadlockRunning())
+                {
+                    SetNotice(
+                        "Close Deadlock first",
+                        "Deadlock is already running. Close it, then use Randomise, Apply & Play so the staged skins load cleanly.",
+                        NoticeKind.Warning,
+                        showBanner: true);
+                    return;
+                }
+
+                RandomisePlayButton.IsEnabled = false;
                 if (_currentLoadout.Count == 0)
                     RandomiseCurrentLoadout();
 
@@ -221,6 +233,16 @@ namespace DL_Skin_Randomiser
                 var result = ModApplyService.Apply(_statePath, _gamePath, _mods, _selectedProfileId);
                 _addonsState = AddonsInventoryService.ApplyPhysicalState(_gamePath, _mods);
                 RefreshAddonsDiagnostics();
+                if (result.EnabledModsWithoutStagedFilesCount > 0)
+                {
+                    SetNotice(
+                        "Some skins were not staged",
+                        BuildMissingStagedFilesStatus(result),
+                        NoticeKind.Warning,
+                        showBanner: true);
+                    return;
+                }
+
                 if (result.RequiresDlmmApply)
                 {
                     LogDiagnosticSnapshot("Randomise, Apply & Play pending DLMM apply", $"Randomised {_currentLoadout.Count} picks and updated {GetSelectedProfileName()}. DLMM apply/rebuild is required.");
@@ -232,6 +254,13 @@ namespace DL_Skin_Randomiser
                     return;
                 }
 
+                SetNotice(
+                    "Launching soon",
+                    "Applied the loadout. Giving staged files a moment before launching Deadlock.",
+                    NoticeKind.Info,
+                    showBanner: true);
+                await Task.Delay(GameLaunchSettleDelay);
+
                 GameLaunchService.Launch(_gamePath);
                 LogDiagnosticSnapshot("Randomise, Apply & Play launched", $"Applied {_currentLoadout.Count} current picks to {GetSelectedProfileName()} and launched Deadlock.");
                 _discordPresence.ShowPlaying(GetSelectedProfileName(), _currentLoadout.Count);
@@ -242,6 +271,10 @@ namespace DL_Skin_Randomiser
             {
                 LogDiagnosticSnapshot("Randomise, Apply & Play failed", $"Randomise, Apply & Play failed: {ex.Message}", ex);
                 SetNotice("Launch failed", $"Randomise, Apply & Play failed: {ex.Message}", NoticeKind.Error, showBanner: true);
+            }
+            finally
+            {
+                RandomisePlayButton.IsEnabled = true;
             }
         }
 
@@ -1439,6 +1472,8 @@ namespace DL_Skin_Randomiser
                 status += $" {result.StagingSkippedCount} mods had no game files to stage.";
             if (result.StaleSourceVpkSkippedCount > 0)
                 status += $" Ignored {result.StaleSourceVpkSkippedCount} stale source VPKs from older mod versions.";
+            if (result.EnabledModsWithoutStagedFilesCount > 0)
+                status += $" {BuildMissingStagedFilesStatus(result)}";
             if (!string.IsNullOrWhiteSpace(result.BackupPath))
                 status += " DLMM state backup created beside state.json.";
             if (result.GameFilesStaged && !string.IsNullOrWhiteSpace(result.AddonsBackupPath))
@@ -1488,6 +1523,21 @@ namespace DL_Skin_Randomiser
                 status += $" {addonsState.StateOnlyModCount} old DLMM flags have no matching live files.";
 
             return status;
+        }
+
+        private static string BuildMissingStagedFilesStatus(ApplyResult result)
+        {
+            var names = result.EnabledModsWithoutStagedFiles
+                .Take(4)
+                .ToList();
+            var listedNames = names.Count == 0
+                ? $"{result.EnabledModsWithoutStagedFilesCount} selected skins"
+                : string.Join(", ", names);
+            var extraCount = result.EnabledModsWithoutStagedFilesCount - names.Count;
+            if (extraCount > 0)
+                listedNames += $" and {extraCount} more";
+
+            return $"{listedNames} had no source VPK to stage. Open DLMM and apply/rebuild, or check diagnostics before launching.";
         }
 
         private static bool IsDlmmRunning()
