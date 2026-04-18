@@ -90,6 +90,7 @@ namespace DL_Skin_Randomiser.Services
                 "DL-Skin-Randomiser",
                 "UpdateStaging",
                 DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+            PruneOldUpdateStaging(Path.GetDirectoryName(updateRoot) ?? "");
             var extractionPath = Path.Combine(updateRoot, "extracted");
             Directory.CreateDirectory(extractionPath);
 
@@ -97,9 +98,11 @@ namespace DL_Skin_Randomiser.Services
             using var response = await HttpClient.GetAsync(update.PortablePackageDownloadUrl);
             response.EnsureSuccessStatusCode();
 
-            await using var sourceStream = await response.Content.ReadAsStreamAsync();
-            await using var destinationStream = File.Create(packagePath);
-            await sourceStream.CopyToAsync(destinationStream);
+            await using (var sourceStream = await response.Content.ReadAsStreamAsync())
+            await using (var destinationStream = File.Create(packagePath))
+            {
+                await sourceStream.CopyToAsync(destinationStream);
+            }
 
             ZipFile.ExtractToDirectory(packagePath, extractionPath, overwriteFiles: true);
             var extractedExePath = Directory
@@ -143,6 +146,27 @@ namespace DL_Skin_Randomiser.Services
             catch
             {
                 return false;
+            }
+        }
+
+        private static void PruneOldUpdateStaging(string stagingRoot)
+        {
+            if (string.IsNullOrWhiteSpace(stagingRoot) || !Directory.Exists(stagingRoot))
+                return;
+
+            foreach (var oldDirectory in Directory.GetDirectories(stagingRoot)
+                         .Select(path => new DirectoryInfo(path))
+                         .OrderByDescending(directory => directory.LastWriteTimeUtc)
+                         .Skip(3))
+            {
+                try
+                {
+                    oldDirectory.Delete(recursive: true);
+                }
+                catch
+                {
+                    // A previous updater may still be cleaning up. Leave locked staging folders alone.
+                }
             }
         }
 
